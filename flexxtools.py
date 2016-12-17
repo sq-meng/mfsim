@@ -18,6 +18,10 @@ np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 _fmt_8_3 = '{: >8.3f}'.format
 _fmt_2 = '{:.2f}'.format
 
+A4_CHANNELS = 31
+A4_OFFSET = 2.5
+EF_LIST = [2.5, 3.0, 3.5, 4.0, 4.5]
+
 
 def elegant_float(num):
     try:
@@ -405,7 +409,7 @@ class MultiFlexxScan(object):
 
     @property
     def ei(self):
-        return round((self.ki / 0.6947) ** 2, 2)
+        return round(k_to_e(self.ki), 2)
 
     def _load_background(self, background: BackgroundInterpolator):
         if background is None:
@@ -510,7 +514,8 @@ class MultiFlexxScan(object):
         return 'scan ' + file_name + ', ' + ei + a3_range + a4_range + scanned_steps
 
 
-def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, a4_span, ub_matrix):
+def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix):
+    a4_span = (A4_CHANNELS - 1) * A4_OFFSET
     a3_range = np.linspace(a3_start, a3_end, max(int(a3_end - a3_start), 2))
     a4_range_low = np.linspace(a4_start - a4_span / 2, a4_end - a4_span / 2, max(int(a3_end - a3_start), 2))
     a4_range_high = np.linspace(a4_end + a4_span / 2, a4_start + a4_span / 2, max(int(a3_end - a3_start), 2))
@@ -525,4 +530,21 @@ def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, a4_span, ub_matr
 
     return np.ndarray.tolist(p_locus[0:2, :].T)
 
+
+def calculate_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, no_points, ub_matrix, horizontal_magnet=None):
+    a4_mask = np.linspace(-A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_CHANNELS)
+    a3_points = np.linspace(a3_start, a3_end, no_points)
+    a4_points = np.linspace(a4_start, a4_end, no_points)
+    a3_a4_array = np.zeros([A4_CHANNELS * no_points, 2])
+    for nth in range(no_points):
+        a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 0] = a3_points[nth]
+        a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 1] = a4_points[nth] + a4_mask
+    s_coords = angle_to_qins(ki, kf, a3_a4_array[:, 0], a3_a4_array[:, 1])
+    p_coords = ub_matrix.convert(s_coords, 'sp')
+    if horizontal_magnet is None:
+        colors = ['#5555C5'] * a3_a4_array.shape[0]
+    else:
+        colors = ['#5555C5'] * a3_a4_array.shape[0]
+
+    return np.ndarray.tolist(p_coords[0:2, :].T), colors
 
