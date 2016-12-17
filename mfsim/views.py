@@ -136,6 +136,7 @@ def split_locus_lists(locuses):
             locuses_y[i].append(list(np.array(path)[:, 1]))
     return locuses_x, locuses_y
 
+
 def find_common_coverage(locuses):
     clipper = Pyclipper()
     current_locus = locuses[0]
@@ -146,6 +147,7 @@ def find_common_coverage(locuses):
         clipper.Clear()
     l_x, l_y = split_locus_lists([current_locus])
     return l_x, l_y
+
 
 def set_aspect(fig, x, y, aspect=1, margin=0.1):
     """Set the plot ranges to achieve a given aspect ratio.
