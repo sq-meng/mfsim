@@ -88,7 +88,7 @@ button.action_button {
             <table>
                 <thead>
                     <tr>
-                        <th>Ei(meV)</th><th colspan="3">A3 range</th><th colspan="3">A4 range</th><th>Operations</th>
+                        <th>Ei(meV)</th><th colspan="3">A3 range</th><th colspan="3">A4 range</th><th>Points</th><th>Operations</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,6 +97,7 @@ button.action_button {
                         <td class='ei'>{{item.ei}}</td>
                         <td class="A3_start">{{item.A3_start}}</td><td>to</td><td class="A3_end">{{item.A3_end}}</td>
                         <td class="A4_start">{{item.A4_start}}</td><td>to</td><td class="A4_end">{{item.A4_end}}</td>
+                        <td class="NP">{{item.NP}}</td>
                         <td><button type='button' class='remove_button action_button'>remove</button></td>
                     </tr>
                     {%endfor%}
@@ -107,6 +108,7 @@ button.action_button {
                         <td><input type='text' name='A3_end' class='scan_entry'></td>
                         <td><input type='text' name='A4_start' class='scan_entry'></td><td>to</td>
                         <td><input type='text' name='A4_end' class='scan_entry'></td>
+                        <td><input type="text" name="NP" class="scan_entry"></td>
                         <td><button type='button' class='add_button action_button' id='add_button'>add</button></td>
                     </tr>
                 </tbody>
@@ -159,12 +161,13 @@ button.action_button {
                     </tr>
                     </tbody>
                 </table>
-                <div id="hidden_inputs" class="hidden_inputs" style="display:none">
+                <div id="hidden_inputs" class="hidden_inputs" style="display:true">
                     <input type="text" id="ei_list" name="ei_list">
                     <input type="text" id="A3_start_list" name="A3_start_list">
                     <input type="text" id="A3_end_list" name="A3_end_list">
                     <input type="text" id="A4_start_list" name="A4_start_list">
                     <input type="text" id="A4_end_list" name="A4_end_list">
+                    <input type="text" id="NP_list" name="NP_list">
                     <input type="text" id="submitted" name="submitted" value="Ja">
                 </div>
             </form>
@@ -195,7 +198,7 @@ button.action_button {
         $(event.target).closest('tr').remove();
     }
     var add_buttonfun = function add_buttonfun(event) {
-        var entries = ['ei', 'A3_start', 'A3_end', 'A4_start', 'A4_end'];
+        var entries = ['ei', 'A3_start', 'A3_end', 'A4_start', 'A4_end', 'NP'];
         var values = {};
         var node = $(event.target).closest('tr')
 
@@ -210,7 +213,7 @@ button.action_button {
             node.before(`<tr class='scans_row'><td class='ei'>${values.ei.toString()}</td>
             <td class='A3_start'>${values.A3_start.toString()}</td><td>to</td><td class="A3_end">${values.A3_end.toString()}</td>
             <td class='A4_start'>${values.A4_start.toString()}</td><td>to</td><td class="A4_end">${values.A4_end.toString()}</td>
-            <td><button type='button', class='remove_button action_button'>remove</button></td></tr>`);
+            <td class='NP'>${values.NP.toString()}</td><td><button type='button', class='remove_button action_button'>remove</button></td></tr>`);
             var remove_button = $('.remove_button');
             remove_button.click(remove_buttonfun);
             $('#scan_error_box').hide();
@@ -235,7 +238,7 @@ button.action_button {
     }
 
     var update_lists = function update_lists() {
-        var entries = ['ei', 'A3_start', 'A3_end', 'A4_start', 'A4_end'];
+        var entries = ['ei', 'A3_start', 'A3_end', 'A4_start', 'A4_end', 'NP'];
         for (entry of entries) {
             update_list(entry);
         }

@@ -3,11 +3,12 @@ from django.shortcuts import render
 import flexxtools as ft
 import numpy as np
 from bokeh.plotting import figure, output_file, show
-from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker
+from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS
 from bokeh.embed import components
-from bokeh.layouts import gridplot
+from bokeh.models.widgets import RadioButtonGroup
+from bokeh.layouts import gridplot, column
 from bokeh.resources import CDN, INLINE
-from pyclipper import Pyclipper, PFT_NONZERO, PFT_POSITIVE, PT_SUBJECT, PT_CLIP, scale_from_clipper, scale_to_clipper, CT_UNION, CT_INTERSECTION
+from pyclipper import Pyclipper, PFT_NONZERO, PFT_POSITIVE, PT_SUBJECT, PT_CLIP, scale_from_clipper, scale_to_clipper, CT_UNION, CT_INTERSECTION, ClipperException
 
 fmt2 = '{:.2f}'.format
 fmt1 = '{:.1f}'.format
@@ -37,11 +38,10 @@ def multiflexx_sim(request):
         scan_data_nice = extract_data(scan_data)
         scan_rows = make_scan_rows(scan_data_nice)
         script, div = make_figures(scan_data_nice)
-        s2, d2 = make_figures(scan_data_nice)
     js_resources = INLINE.render_js()
     css_resources = INLINE.render_css()
     tag_lib = {'scan_data': scan_data, 'scan_rows': scan_rows, 'graph_script': script, 'graph_div': div,
-               'js_resources': js_resources, 'css_resources': css_resources, 'submitted': submitted, 's2': s2, 'd2': d2}
+               'js_resources': js_resources, 'css_resources': css_resources, 'submitted': submitted}
     tag_lib.update(scan_data)
 
     return render(request, 'multiflexx.html', tag_lib)
@@ -59,19 +59,20 @@ def extract_data(get):
     A3_ends = floatize(get['A3_end_list'].split(','))
     A4_starts = floatize(get['A4_start_list'].split(','))
     A4_ends = floatize(get['A4_end_list'].split(','))
+    NPs = floatize(get['NP_list'].split(','))
     return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=A3_starts,
-                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends)
+                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs)
 
 
 def make_scan_rows(scan):
     return [dict(ei=fmt2(ei), A3_start=fmt2(A3_start), A3_end=fmt2(A3_end),
-                 A4_start=fmt2(A4_start), A4_end=fmt2(A4_end))
-            for ei, A3_start, A3_end, A4_start, A4_end in zip(scan['eis'], scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'])]
+                 A4_start=fmt2(A4_start), A4_end=fmt2(A4_end), NP=fmt2(NP))
+            for ei, A3_start, A3_end, A4_start, A4_end, NP in zip(scan['eis'], scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'], scan['NPs'])]
 
 
 def make_figures(scan):
     ub_matrix = ft.UBMatrix(scan['latparam'], scan['hkl1'], scan['hkl2'], scan['plot_x'], scan['plot_y'])
-    A3_starts, A3_ends, A4_starts, A4_ends = (scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'])
+    A3_starts, A3_ends, A4_starts, A4_ends, NPs = (scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'], scan['NPs'])
     kis = [ft.e_to_k(e) for e in scan['eis']]
     kfs = [ft.e_to_k(e) for e in ft.EF_LIST]
     unique_kis = sorted(list(set(kis)))
@@ -79,50 +80,97 @@ def make_figures(scan):
     colors = ['#FFCE98', '#F6FF8D', '#94FFD5', '#909CFF', '#FF8AD8']
 
     locuses_dict = {}
+    scatters_dict = {}
+    colors_dict = {}
     for nth, ki in enumerate(unique_kis):
-        clippers = [Pyclipper() for i in range(5)]
+        clippers = [Pyclipper() for _ in range(5)]
+        scatter_arrays = [[] for _ in range(5)]
+        color_arrays = [[] for _ in range(5)]
         for scan_no in scan_indexes[nth]:
             angles = (A3_starts[scan_no], A3_ends[scan_no], A4_starts[scan_no], A4_ends[scan_no], ub_matrix)
-            locuses = [ft.calculate_locus(ki, kf, *angles) for kf in kfs]
+            locuses = [ft.calculate_locus(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
+            scatters_colors = [ft.calculate_coords(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
             for i in range(5):
                 clippers[i].AddPath(scale_to_clipper(locuses[i]), PT_SUBJECT)
-
+                scatter_arrays[i] += scatters_colors[i][0]
+                color_arrays[i] += scatters_colors[i][1]
         locuses_ki = [scale_from_clipper(clippers[i].Execute(CT_UNION, PFT_NONZERO)) for i in range(5)]
         locuses_ki_x, locuses_ki_y = split_locus_lists(locuses_ki)
+        scatters_ki_x, scatters_ki_y = split_scatter_lists(scatter_arrays)
         common_locus_x, common_locus_y = find_common_coverage(locuses_ki)
         locuses_dict[ki] = [locuses_ki_x, locuses_ki_y, common_locus_x, common_locus_y]
+        scatters_dict[ki] = [scatters_ki_x, scatters_ki_y]
 
     p_col = []
+    plots = []
     x_axis = np.array(scan['plot_x'])
     y_axis = np.array(scan['plot_y'])
     for ki in locuses_dict.keys():
         TOOLS = "pan,wheel_zoom,reset,save"
-        p = figure(plot_width=450, plot_height=500, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
+        p = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
         p.xaxis.axis_label = 'x * %s' % nice_vector(x_axis)
         p.yaxis.axis_label = 'y * %s' % nice_vector(y_axis)
         ticker = SingleIntervalTicker(interval=0.5, num_minor_ticks=1)
         p.axis.ticker = ticker
         p.grid.ticker = ticker
-        loc_test = locuses_dict[ki]
+        locus = locuses_dict[ki]
         efs_str = [fmt1(ft.k_to_e(ki) - ft.k_to_e(kf)) for kf in kfs]
+        sources = []
+        source = ColumnDataSource(dict(x=[0], y=[0]))
+        se = ColumnDataSource(dict(x=[0], y=[0]))
         for i in reversed(range(5)):
             color = colors[i]
-            x_list = loc_test[0][i]
-            y_list = loc_test[1][i]
+            x_list = locus[0][i]
+            y_list = locus[1][i]
             channel = p.patches(x_list, y_list, alpha=0.35, fill_color=color, line_width=1, legend='dE='+efs_str[i])
             set_aspect(p, x_list[0], y_list[0], aspect=ub_matrix.figure_aspect)
-        common = p.patches(loc_test[2][0], loc_test[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
+        for i in range(5):
+            sources.append(ColumnDataSource(dict(x=scatters_dict[ki][0][i], y=scatters_dict[ki][1][i])))
+        channel_scatter = p.circle('x', 'y', size=3, fill_alpha=0.7,
+                                            visible=True, fill_color='cyan', line_alpha=0.2, source=source)
+        common = p.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
                            line_color='red')
         glyph_dots = plot_lattice_points(p, x_axis, y_axis)
+        cs = sources
+        callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=se, source=source), code="""
+                var f = cb_obj.active;
+                data = source.get('data');
+                switch (f) {
+                    case 0:
+                        data2 = s0.get('data');
+                        break;
+                    case 1:
+                        data2 = s1.get('data');
+                        break;
+                    case 2:
+                        data2 = s2.get('data');
+                        break;
+                    case 3:
+                        data2 = s3.get('data');
+                        break;
+                    case 4:
+                        data2 = s4.get('data');
+                        break;
+                    case 5:
+                        data2 = s5.get('data');
+                        break;
+                }
+                data['x'] = data2['x'];
+                data['y'] = data2['y'];
+                source.trigger('change');
+            """)
+        buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
+
         hover = HoverTool(renderers=[glyph_dots], tooltips=[('coord', '@coord')])
         p.add_tools(hover)
-        p_col.append(p)
-    for each in p_col:
-        each.x_range = p_col[0].x_range
-        each.y_range = p_col[0].y_range
+        p_col += [buttons, p]
+        plots.append(p)
+    for each in plots:
+        each.x_range = plots[0].x_range
+        each.y_range = plots[0].y_range
 
-    grid = gridplot(p_col, ncols=2)
-    script, div = components(grid, CDN)
+    grid = column(*p_col)
+    script, div = components(grid)
     return script, div
 
 
@@ -193,3 +241,12 @@ def plot_lattice_points(p, x_axis, y_axis):
     source = ColumnDataSource(data=dict(x=xr, y=yr, coord=ttip))
     glyph = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
     return glyph
+
+
+def split_scatter_lists(scatter_arrays):
+    scatter_x, scatter_y = [], []
+    for i in range(5):
+        scatter_array = np.array(scatter_arrays[i])
+        scatter_x.append(scatter_array[:, 0])
+        scatter_y.append(scatter_array[:, 1])
+    return scatter_x, scatter_y

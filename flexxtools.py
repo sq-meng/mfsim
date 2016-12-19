@@ -514,11 +514,13 @@ class MultiFlexxScan(object):
         return 'scan ' + file_name + ', ' + ei + a3_range + a4_range + scanned_steps
 
 
-def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix):
+def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, no_points=0):
     a4_span = (A4_CHANNELS - 1) * A4_OFFSET
-    a3_range = np.linspace(a3_start, a3_end, max(int(a3_end - a3_start), 2))
-    a4_range_low = np.linspace(a4_start - a4_span / 2, a4_end - a4_span / 2, max(int(a3_end - a3_start), 2))
-    a4_range_high = np.linspace(a4_end + a4_span / 2, a4_start + a4_span / 2, max(int(a3_end - a3_start), 2))
+    if no_points == 0:
+        no_points = max(int(a3_end - a3_start), 2)
+    a3_range = np.linspace(a3_start, a3_end, no_points)
+    a4_range_low = np.linspace(a4_start - a4_span / 2, a4_end - a4_span / 2, no_points)
+    a4_range_high = np.linspace(a4_end + a4_span / 2, a4_start + a4_span / 2, no_points)
     a4_span_range_low = np.linspace(a4_start + a4_span / 2, a4_start - a4_span / 2, 31)
     a4_span_range_high = np.linspace(a4_end - a4_span / 2, a4_end + a4_span / 2, 31)
 
@@ -531,7 +533,11 @@ def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix):
     return np.ndarray.tolist(p_locus[0:2, :].T)
 
 
-def calculate_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, no_points, ub_matrix, horizontal_magnet=None):
+def calculate_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, horizontal_magnet=None, no_points=0):
+    if no_points == 0:
+        no_points = max(int(a3_end - a3_start), 2)
+    else:
+        no_points = int(no_points)
     a4_mask = np.linspace(-A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_CHANNELS)
     a3_points = np.linspace(a3_start, a3_end, no_points)
     a4_points = np.linspace(a4_start, a4_end, no_points)
