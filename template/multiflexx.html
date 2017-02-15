@@ -230,7 +230,7 @@ button.action_button {
         var doms = $(`.${name}`);
         var data_entries = [];
         for (dom of doms) {
-            data_entries.push(dom.innerText);
+            data_entries.push(dom.textContent);
         }
         var hidden_name = name + '_list';
         var hidden_entry = $(`#${hidden_name}`);
