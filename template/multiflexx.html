@@ -59,10 +59,13 @@ button.action_button {
     width: 100px;
 }
 
+{% load static %}
+
 </style>
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
         {{css_resources|safe}}
         {{js_resources|safe}}
+    <script src="{% static 'js\\jquery.jeditable.mini.js' %}"></script>
 </head>
 
 <div id='root' class='bigbox'>
@@ -94,10 +97,10 @@ button.action_button {
                 <tbody>
                     {%for item in scan_rows%}
                     <tr class='scans_row'>
-                        <td class='ei'>{{item.ei}}</td>
-                        <td class="A3_start">{{item.A3_start}}</td><td>to</td><td class="A3_end">{{item.A3_end}}</td>
-                        <td class="A4_start">{{item.A4_start}}</td><td>to</td><td class="A4_end">{{item.A4_end}}</td>
-                        <td class="NP">{{item.NP}}</td>
+                        <td class='ei editable'>{{item.ei}}</td>
+                        <td class="A3_start editable">{{item.A3_start}}</td><td>to</td><td class="A3_end editable">{{item.A3_end}}</td>
+                        <td class="A4_start editable">{{item.A4_start}}</td><td>to</td><td class="A4_end editable">{{item.A4_end}}</td>
+                        <td class="NP editable">{{item.NP}}</td>
                         <td><button type='button' class='remove_button action_button'>remove</button></td>
                     </tr>
                     {%endfor%}
@@ -210,13 +213,14 @@ button.action_button {
 
         }
         if (!has_invalid) {
-            node.before(`<tr class='scans_row'><td class='ei'>${values.ei.toString()}</td>
-            <td class='A3_start'>${values.A3_start.toString()}</td><td>to</td><td class="A3_end">${values.A3_end.toString()}</td>
-            <td class='A4_start'>${values.A4_start.toString()}</td><td>to</td><td class="A4_end">${values.A4_end.toString()}</td>
-            <td class='NP'>${values.NP.toString()}</td><td><button type='button', class='remove_button action_button'>remove</button></td></tr>`);
+            node.before(`<tr class='scans_row'><td class='ei editable'>${values.ei.toString()}</td>
+            <td class='A3_start editable'>${values.A3_start.toString()}</td><td>to</td><td class="A3_end editable">${values.A3_end.toString()}</td>
+            <td class='A4_start editable'>${values.A4_start.toString()}</td><td>to</td><td class="A4_end editable">${values.A4_end.toString()}</td>
+            <td class='NP editable'>${values.NP.toString()}</td><td><button type='button', class='remove_button action_button'>remove</button></td></tr>`);
             var remove_button = $('.remove_button');
             remove_button.click(remove_buttonfun);
             $('#scan_error_box').hide();
+            $('.editable').editable(function(value, settings) {return(value);})
         } else {
             $('#scan_error_box').show();
         }
@@ -268,4 +272,5 @@ button.action_button {
         }
     })
     $('#scan_error_box').hide();
+    $('.editable').editable(function(value, settings) {return(value);})
 </script>
