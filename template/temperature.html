@@ -3,8 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <title>Temperature log</title>
+    {% load static %}
 </head>
 <body>
-
+<table>
+    <tr>
+        <td>Retrieved: {{time}}</td>
+    </tr>
+    <tr>
+        <td> <img src="{% static 'rrdgraph\\12h.png' %}"> </td>
+    </tr>
+    <tr>
+        <td> <img src="{% static 'rrdgraph\\48h.png' %}"> </td>
+    </tr>
+    <tr>
+        <td> <img src="{% static 'rrdgraph\\1w.png' %}"> </td>
+    </tr>
+</table>
 </body>
 </html>
