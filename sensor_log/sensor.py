@@ -1,8 +1,8 @@
-from datetime import datetime
+from time import ctime
 from django.shortcuts import render
 
 
 def temp(request):
-    time = str(datetime.now())
+    time = ctime()
     tag_lib = {'time': time}
     return render(request, 'temperature.html', tag_lib)
