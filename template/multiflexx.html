@@ -1,67 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+    {% load static %}
     <meta charset="utf-8">
     <title>MultiFLEXX Q-space coverage simulator</title>
-<style>
-h3.section_head {
-    font-family: Arial;
-    background-color: #88CCC9;
-    font-size: 20px;
-    magrin-bottm: 2px;
-    padding: 12px 10px;
-    font-weight: normal;
-}
+    <link rel="stylesheet" href="{% static 'css/mfsim.css' %}">
 
-div.error_box {
-    font-family: Arial;
-    background-color: #DD8080;
-    font-size: 20px;
-    magrin-bottm: 2px;
-    padding: 4px 10px;
-    font-weight: normal;
-}
-
-div.bigbox {
-    width: 1000px;
-    padding: 5px;
-    margin: 5px;
-}
-
-div.graphic {
-    magrin-bottm: 5px;
-    padding: 5px 10px;
-}
-
-div.scans_table {
-    width: 600px;
-}
-
-table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-th, td {
-    text-align: left;
-    padding: 8px;
-}
-
-input.scan_entry {
-    width: 4em;
-}
-
-input.sample_entry {
-    width: 3em;
-}
-
-button.action_button {
-    width: 100px;
-}
-
-{% load static %}
-
-</style>
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
         {{css_resources|safe}}
         {{js_resources|safe}}
