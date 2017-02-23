@@ -7,22 +7,24 @@
     <link rel="stylesheet" href="{% static 'css/mfsim.css' %}">
 </head>
 <body>
-<h3 class="section_head">Sensor log</h3>
-<div style="width:100%;">
-<table>
-    <tr>
-        <td>Retrieved: {{time}}</td>
-    </tr>
-    <tr>
-        <td> <img src="{% static 'rrdgraph\\12h.png' %}"> </td>
-    </tr>
-    <tr>
-        <td> <img src="{% static 'rrdgraph\\48h.png' %}"> </td>
-    </tr>
-    <tr>
-        <td> <img src="{% static 'rrdgraph\\1w.png' %}"> </td>
-    </tr>
-</table>
+<div id="root" class="bigbox">
+    <h3 class="section_head">Sensor log</h3>
+    <div style="width:100%;">
+        <table>
+            <tr>
+                <td>Retrieved: {{time}}</td>
+            </tr>
+            <tr>
+                <td> <img src="{% static 'rrdgraph\\12h.png' %}"> </td>
+            </tr>
+            <tr>
+                <td> <img src="{% static 'rrdgraph\\48h.png' %}"> </td>
+            </tr>
+            <tr>
+                <td> <img src="{% static 'rrdgraph\\1w.png' %}"> </td>
+            </tr>
+        </table>
+    </div>
 </div>
 </body>
 </html>
