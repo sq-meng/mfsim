@@ -12,7 +12,7 @@ from pyclipper import Pyclipper, PFT_NONZERO, PFT_POSITIVE, PT_SUBJECT, PT_CLIP,
 
 fmt2 = '{:.2f}'.format
 fmt1 = '{:.1f}'.format
-
+fmt0 = '{:.0f}'.format
 
 def nice_vector(v):
     return '[%s, %s, %s]' % (fmt1(v[0]), fmt1(v[1]), fmt1(v[2]))
@@ -66,7 +66,7 @@ def extract_data(get):
 
 def make_scan_rows(scan):
     return [dict(ei=fmt2(ei), A3_start=fmt2(A3_start), A3_end=fmt2(A3_end),
-                 A4_start=fmt2(A4_start), A4_end=fmt2(A4_end), NP=fmt2(NP))
+                 A4_start=fmt2(A4_start), A4_end=fmt2(A4_end), NP=fmt0(NP))
             for ei, A3_start, A3_end, A4_start, A4_end, NP in zip(scan['eis'], scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'], scan['NPs'])]
 
 
@@ -232,7 +232,7 @@ def set_aspect(fig, x, y, aspect=1, margin=0.1):
 
 
 def plot_lattice_points(p, x_axis, y_axis):
-    x, y = np.mgrid[-3:3:0.5, -3:3:0.5]
+    x, y = np.mgrid[-10:10:0.5, -10:10:0.5]
     xr = list(np.reshape(x, -1))
     yr = list(np.reshape(y, -1))
     ttip = []
