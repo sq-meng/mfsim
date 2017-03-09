@@ -45,7 +45,10 @@
                         <td class="A3_start editable">{{item.A3_start}}</td><td>to</td><td class="A3_end editable">{{item.A3_end}}</td>
                         <td class="A4_start editable">{{item.A4_start}}</td><td>to</td><td class="A4_end editable">{{item.A4_end}}</td>
                         <td class="NP editable">{{item.NP}}</td>
-                        <td><button type='button' class='remove_button action_button'>remove</button></td>
+                        <td>
+                            <button type='button' class='remove_button action_button'>remove</button>
+                            <button type="button" class="clone_button action_button">clone</button>
+                        </td>
                     </tr>
                     {%endfor%}
                     <tr id='row_add_button'>
@@ -147,7 +150,7 @@
     var add_buttonfun = function add_buttonfun(event) {
         var entries = ['ei', 'A3_start', 'A3_end', 'A4_start', 'A4_end', 'NP'];
         var values = {};
-        var node = $(event.target).closest('tr')
+        var node = $(event.target).closest('tr');
 
         var has_invalid = false
         for (name of entries) {
@@ -160,14 +163,25 @@
             node.before(`<tr class='scans_row'><td class='ei editable'>${values.ei.toString()}</td>
             <td class='A3_start editable'>${values.A3_start.toString()}</td><td>to</td><td class="A3_end editable">${values.A3_end.toString()}</td>
             <td class='A4_start editable'>${values.A4_start.toString()}</td><td>to</td><td class="A4_end editable">${values.A4_end.toString()}</td>
-            <td class='NP editable'>${values.NP.toString()}</td><td><button type='button', class='remove_button action_button'>remove</button></td></tr>`);
-            var remove_button = $('.remove_button');
-            remove_button.click(remove_buttonfun);
+            <td class='NP editable'>${values.NP.toString()}</td>
+            <td>
+                <button type='button', class='remove_button action_button'>remove</button>
+                <button type='button', class='clone_button action_button'>clone</button>
+            </td></tr>`);
+            associate_buttons();
             $('#scan_error_box').hide();
             $('.editable').editable(function(value, settings) {return(value);})
         } else {
             $('#scan_error_box').show();
         }
+    }
+
+    var clone_buttonfun = function clone_buttonfun(event) {
+        var node = $(event.target).closest('tr');
+        var clone = node.clone();
+        console.log("firing");
+        node.after(clone);
+        associate_buttons();
     }
 
     var update_list = function update_list(name) {
@@ -198,12 +212,23 @@
         }
     }
 
-    var remove_button = $('.remove_button');
+    var associate_buttons = function associate_buttons(){
+        var remove_button = $('.remove_button');
+        var scan_fields = $('.scan_entry');
+        scan_fields.keypress(scan_field_key);
+        remove_button.click(remove_buttonfun);
+    }
+
+
     var add_button = $('#add_button');
-    var scan_fields = $('.scan_entry');
-    scan_fields.keypress(scan_field_key);
-    remove_button.click(remove_buttonfun);
     add_button.click(add_buttonfun);
+    <!--var scan_fields = $('.scan_entry');-->
+    <!--scan_fields.keypress(scan_field_key);-->
+    <!--var remove_button = $('.remove_button');-->
+    <!--remove_button.click(remove_buttonfun);-->
+
+    associate_buttons();
+    $('#div_inputs').on('click', '.clone_button', clone_buttonfun);
 
     $('#entry').submit(function(event){
         update_lists();
@@ -217,4 +242,5 @@
     })
     $('#scan_error_box').hide();
     $('.editable').editable(function(value, settings) {return(value);})
+
 </script>
