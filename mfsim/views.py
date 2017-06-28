@@ -14,11 +14,12 @@ fmt2 = '{:.2f}'.format
 fmt1 = '{:.1f}'.format
 fmt0 = '{:.0f}'.format
 
-def nice_vector(v):
+
+def bracketed_vector(v):
     return '[%s, %s, %s]' % (fmt1(v[0]), fmt1(v[1]), fmt1(v[2]))
 
 
-def myroot(request):
+def site_root(request):
     return render(request, 'index.html', {})
 
 
@@ -48,18 +49,18 @@ def multiflexx_sim(request):
 
 
 def extract_data(get):
-    floatize = lambda string_list: [float(x) for x in string_list]
-    latparam = floatize([get['lat_a'], get['lat_b'], get['lat_c'], get['lat_alpha'], get['lat_beta'], get['lat_gamma']])
-    hkl1 = floatize([get['align_h1'], get['align_k1'], get['align_l1']])
-    hkl2 = floatize([get['align_h2'], get['align_k2'], get['align_l2']])
-    plot_x = floatize([get['plot_h1'], get['plot_k1'], get['plot_l1']])
-    plot_y = floatize([get['plot_h2'], get['plot_k2'], get['plot_l2']])
-    eis = floatize(get['ei_list'].split(','))
-    A3_starts = floatize(get['A3_start_list'].split(','))
-    A3_ends = floatize(get['A3_end_list'].split(','))
-    A4_starts = floatize(get['A4_start_list'].split(','))
-    A4_ends = floatize(get['A4_end_list'].split(','))
-    NPs = floatize(get['NP_list'].split(','))
+    float_each = lambda string_list: [float(x) for x in string_list]
+    latparam = float_each([get['lat_a'], get['lat_b'], get['lat_c'], get['lat_alpha'], get['lat_beta'], get['lat_gamma']])
+    hkl1 = float_each([get['align_h1'], get['align_k1'], get['align_l1']])
+    hkl2 = float_each([get['align_h2'], get['align_k2'], get['align_l2']])
+    plot_x = float_each([get['plot_h1'], get['plot_k1'], get['plot_l1']])
+    plot_y = float_each([get['plot_h2'], get['plot_k2'], get['plot_l2']])
+    eis = float_each(get['ei_list'].split(','))
+    A3_starts = float_each(get['A3_start_list'].split(','))
+    A3_ends = float_each(get['A3_end_list'].split(','))
+    A4_starts = float_each(get['A4_start_list'].split(','))
+    A4_ends = float_each(get['A4_end_list'].split(','))
+    NPs = float_each(get['NP_list'].split(','))
     return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=A3_starts,
                 A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs)
 
@@ -67,7 +68,8 @@ def extract_data(get):
 def make_scan_rows(scan):
     return [dict(ei=fmt2(ei), A3_start=fmt2(A3_start), A3_end=fmt2(A3_end),
                  A4_start=fmt2(A4_start), A4_end=fmt2(A4_end), NP=fmt0(NP))
-            for ei, A3_start, A3_end, A4_start, A4_end, NP in zip(scan['eis'], scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'], scan['NPs'])]
+            for ei, A3_start, A3_end, A4_start, A4_end, NP in zip(scan['eis'], scan['A3_starts'], scan['A3_ends'],
+                                                                  scan['A4_starts'], scan['A4_ends'], scan['NPs'])]
 
 
 def make_figures(scan):
@@ -108,8 +110,8 @@ def make_figures(scan):
     for ki in locuses_dict.keys():
         TOOLS = "pan,wheel_zoom,reset,save"
         p = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
-        p.xaxis.axis_label = 'x * %s' % nice_vector(x_axis)
-        p.yaxis.axis_label = 'y * %s' % nice_vector(y_axis)
+        p.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
+        p.yaxis.axis_label = 'y * %s' % bracketed_vector(y_axis)
         ticker = SingleIntervalTicker(interval=0.5, num_minor_ticks=1)
         p.axis.ticker = ticker
         p.grid.ticker = ticker
@@ -237,7 +239,7 @@ def plot_lattice_points(p, x_axis, y_axis):
     yr = list(np.reshape(y, -1))
     ttip = []
     for cx, cy in zip(xr, yr):
-        ttip.append(nice_vector(cx * x_axis + cy * y_axis))
+        ttip.append(bracketed_vector(cx * x_axis + cy * y_axis))
     source = ColumnDataSource(data=dict(x=xr, y=yr, coord=ttip))
     glyph = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
     return glyph

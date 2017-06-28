@@ -15,12 +15,12 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from mfsim.views import myroot, multiflexx_sim
+from mfsim.views import site_root, multiflexx_sim
 from sensor_log.sensor import temp
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'mfsim/$', multiflexx_sim),
-    url(r'^$', myroot),
+    url(r'^$', site_root),
     url(r'^temperature/', temp)
 ]
