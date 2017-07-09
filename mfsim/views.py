@@ -186,7 +186,7 @@ def make_figures(scan):
             plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix)
             ctrl_col = column([en_buttons, plot_radar, message_div])
         else:
-            ctrl_col = column([en_buttons, plot_coverage, message_div])
+            ctrl_col = column([en_buttons, message_div])
 
         plots.append(plot_coverage)
         p_col.append([plot_coverage, ctrl_col])
@@ -286,53 +286,53 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix)
     azimuth_offset = ft.azimuthS(north_s, hkl1s) + ssr
 
     main_plot.js_on_event(MouseMove, CustomJS(args=dict(div=div, en_button=en_button,
-                                                 ki_source=ki_source, kf_source=kf_source, q_source=q_source),
-   code="""
-        ki = {ki};
-        hkl1 = {hkl1};
-        btn = en_button.active;
-        ef_dict = {{0:2.5, 1:3.0, 2:3.5, 3:4.0, 4:4.5, 5:1000}};
-        ef = ef_dict[btn];
-        kf = etok(ef);
-        ps_mat = math.matrix({ps_mat});
-        pr_mat = math.matrix({pr_mat});
-        p = math.matrix([cb_obj['x'], cb_obj['y'], 0]);
-        s = math.multiply(ps_mat, p);
-        r = math.multiply(pr_mat, p);
-        div.text = 'Q: ' + String([r.get([0]).toFixed(2), r.get([1]).toFixed(2), r.get([2]).toFixed(2)]) + '<br>';
-        
-        try{{
-            [alpha, beta, gamma] = find_triangle(math.norm(s), ki, kf);
-            A4 = alpha;
-            A3 = -1 * (azimuthS(hkl1, s) + gamma);
-            div.text += 'A3: ' + toDeg(A3).toFixed(2) + ', A4: ' + toDeg(A4).toFixed(2);
+        ki_source=ki_source, kf_source=kf_source, q_source=q_source),
+        code="""
+            ki = {ki};
+            hkl1 = {hkl1};
+            btn = en_button.active;
+            ef_dict = {{0:2.5, 1:3.0, 2:3.5, 3:4.0, 4:4.5, 5:1000}};
+            ef = ef_dict[btn];
+            kf = etok(ef);
+            ps_mat = math.matrix({ps_mat});
+            pr_mat = math.matrix({pr_mat});
+            p = math.matrix([cb_obj['x'], cb_obj['y'], 0]);
+            s = math.multiply(ps_mat, p);
+            r = math.multiply(pr_mat, p);
+            div.text = 'Q: ' + String([r.get([0]).toFixed(2), r.get([1]).toFixed(2), r.get([2]).toFixed(2)]) + '<br>';
             
+            try{{
+                [alpha, beta, gamma] = find_triangle(math.norm(s), ki, kf);
+                A4 = alpha;
+                A3 = -1 * (azimuthS(hkl1, s) + gamma);
+                div.text += 'A3: ' + toDeg(A3).toFixed(2) + ', A4: ' + toDeg(A4).toFixed(2);
+                
+                
+                offset = {offset};
+                ki_az = -A3 + offset + math.pi/2;
+                kf_az = ki_az - math.pi + A4;
+                ki_source['data']['x'][1] = ki * math.cos(ki_az);
+                ki_source['data']['y'][1] = ki * math.sin(ki_az);
+                ki_source.change.emit();
+                
+                kf_source['data']['x'][1] = kf * math.cos(kf_az);
+                kf_source['data']['y'][1] = kf * math.sin(kf_az);
+                kf_source.change.emit();
+                
+                q_source['data']['x'][1] = ki * math.cos(ki_az) + kf * math.cos(kf_az);
+                q_source['data']['y'][1] = ki * math.sin(ki_az) + kf * math.sin(kf_az);
+                q_source.change.emit();
+                }}
+            catch(except) {{
+                div.text += "No channel selected/ Scattering triangle cannot close."
+                }}   
             
-            offset = {offset};
-            ki_az = -A3 + offset + math.pi/2;
-            kf_az = ki_az - math.pi + A4;
-            ki_source['data']['x'][1] = ki * math.cos(ki_az);
-            ki_source['data']['y'][1] = ki * math.sin(ki_az);
-            ki_source.change.emit();
+    
             
-            kf_source['data']['x'][1] = kf * math.cos(kf_az);
-            kf_source['data']['y'][1] = kf * math.sin(kf_az);
-            kf_source.change.emit();
-            
-            q_source['data']['x'][1] = ki * math.cos(ki_az) + kf * math.cos(kf_az);
-            q_source['data']['y'][1] = ki * math.sin(ki_az) + kf * math.sin(kf_az);
-            q_source.change.emit();
-            }}
-         catch(except) {{
-            div.text += "No channel selected/ Scattering triangle cannot close."
-            }}   
-        
-
-        
-    """.format(ps_mat=str(ub_matrix.get_matrix('ps').tolist()),
-               pr_mat=str(ub_matrix.get_matrix('pr').tolist()),
-               ki=ki, hkl1=hkl1, north=north, offset=azimuth_offset
-               )))
+        """.format(ps_mat=str(ub_matrix.get_matrix('ps').tolist()),
+                   pr_mat=str(ub_matrix.get_matrix('pr').tolist()),
+                   ki=ki, hkl1=hkl1, north=north, offset=azimuth_offset
+                   )))
 
     return radar
 
