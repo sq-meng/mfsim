@@ -194,7 +194,7 @@ def make_figures(scan):
         each.x_range = plots[0].x_range
         each.y_range = plots[0].y_range
 
-    grid = layout(*p_col)
+    grid = layout(p_col)
     script, div = components(grid)
 
     return script, div
@@ -306,8 +306,6 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix)
                 A4 = alpha;
                 A3 = -1 * (azimuthS(hkl1, s) + gamma);
                 div.text += 'A3: ' + toDeg(A3).toFixed(2) + ', A4: ' + toDeg(A4).toFixed(2);
-                
-                
                 offset = {offset};
                 ki_az = -A3 + offset + math.pi/2;
                 kf_az = ki_az - math.pi + A4;
