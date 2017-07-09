@@ -185,6 +185,7 @@ def make_figures(scan):
         message_div = Div(width=600, height=200)
         if hm != 'no':
             plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix)
+            plot_radar.axis.visible = False
             ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
         else:
             ctrl_col = column([en_button_caption, en_buttons, message_div])
