@@ -3,7 +3,7 @@ from django.shortcuts import render
 import flexxtools as ft
 import numpy as np
 from bokeh.plotting import figure, output_file, show
-from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS, Div
+from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS, Div, PreText
 from bokeh.embed import components
 from bokeh.models.widgets import RadioButtonGroup
 from bokeh.layouts import gridplot, column, layout
@@ -178,15 +178,16 @@ def make_figures(scan):
                 source.change.emit();
             """)
         en_buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
-
+        en_button_caption = Div()
+        en_button_caption.text = """<span style="font-weight: bold;">Active channel:</span>"""
         hover = HoverTool(renderers=[glyph_dots], tooltips=[('coord', '@coord')])
         plot_coverage.add_tools(hover)
         message_div = Div(width=600, height=200)
         if hm != 'no':
             plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix)
-            ctrl_col = column([en_buttons, plot_radar, message_div])
+            ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
         else:
-            ctrl_col = column([en_buttons, message_div])
+            ctrl_col = column([en_button_caption, en_buttons, message_div])
 
         plots.append(plot_coverage)
         p_col.append([plot_coverage, ctrl_col])
