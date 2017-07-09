@@ -41,11 +41,11 @@ def k_to_e(k):
 class UBMatrix(object):
     def __init__(self, *args, config=None):
         if config is None:
-            self._latparam, self._hkl1, self._hkl2, self._plot_x, self._plot_y = args
+            self._latparam, self.hkl1, self.hkl2, self._plot_x, self._plot_y = args
         else:
             self._latparam = config.sample['latparam']
-            self._hkl1 = config.alignment['hkl1']
-            self._hkl2 = config.alignment['hkl2']
+            self.hkl1 = config.alignment['hkl1']
+            self.hkl2 = config.alignment['hkl2']
             self._plot_x = config.plot['x']
             self._plot_y = config.plot['y']
         self.conversion_matrices = {}
@@ -87,8 +87,8 @@ class UBMatrix(object):
         return r_in_l
 
     def _calculate_sl(self):
-        hkl1_l = np.dot(self.conversion_matrices['rl'], self._hkl1)
-        hkl2_l = np.dot(self.conversion_matrices['rl'], self._hkl2)
+        hkl1_l = np.dot(self.conversion_matrices['rl'], self.hkl1)
+        hkl2_l = np.dot(self.conversion_matrices['rl'], self.hkl2)
 
         hkl1_cross_hkl2 = np.cross(hkl1_l, hkl2_l)
         sz_in_l = hkl1_cross_hkl2 / np.linalg.norm(hkl1_cross_hkl2)
@@ -129,6 +129,13 @@ class UBMatrix(object):
 
         return np.dot(conversion_matrix, coord)
 
+    def get_matrix(self, system):
+        try:
+            return self.conversion_matrices[system]
+        except KeyError:
+            _ = self.convert([1, 1, 1], system)
+            return self.conversion_matrices[system]
+
     def __repr__(self):
         lattice_parameters = self._latparam
         a, b, c, alpha_deg, beta_deg, gamma_deg = lattice_parameters
@@ -153,6 +160,56 @@ def find_triangle_angles(a, b, c):
     gamma = np.arccos(cc)
 
     return alpha, beta, gamma
+
+
+def angle_to_s(ki, kf, a3, a4):
+    try:
+        length = min(len(a3), len(a4))
+    except TypeError:
+        length = 1
+    a3 = np.array(a3).reshape(1, -1)
+    a4 = np.array(a4).reshape(1, -1)
+    ones = np.ones([1, length])
+    zeros = np.zeros([1, length])
+    initial_vectors = np.vstack([-ones, zeros, zeros])
+    try:
+        len_ki = len(ki)
+        if len_ki == length:
+            ki_in_s = np.array(ki) * initial_vectors
+        else:
+            ki_in_s = ki[0] * initial_vectors
+    except TypeError:
+        ki_in_s = ki * initial_vectors
+    kf_in_s = kf * rotate_around_z(initial_vectors, np.radians(a4))
+    q_in_s = rotate_around_z(kf_in_s - ki_in_s, - np.radians(a3))
+    return q_in_s
+
+
+def rotZ(coord, angle):
+    """Rotates provided vector around [0, 0, 1] for given degrees counterclockwise."""
+    matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
+                       [np.sin(angle), np.cos(angle), 0],
+                       [0, 0, 1]])
+
+    return np.dot(matrix, coord)
+
+
+def azimuthS(k1, k2):
+    #
+    # Calculates how much k1 need to be rotated counterclockwise to reack k2.
+    #
+    if np.cross(k1, k2)[2] >= 0:
+        return np.arccos(np.dot(k1, k2) / np.linalg.norm(k1) / np.linalg.norm(k2))
+    else:
+        return -1 * np.arccos(np.dot(k1, k2) / np.linalg.norm(k1) / np.linalg.norm(k2))
+
+
+def find_kS(ki,kf, QS):
+    QSL = np.linalg.norm(QS)
+    alpha, beta, gamma = find_triangle_angles(QSL, ki, kf)
+    kiS = -rotZ(QS, gamma) / QSL * ki
+    kfS = rotZ(QS, -beta) / QSL * kf
+    return kiS, kfS
 
 
 def load_config(config_parser):
@@ -234,29 +291,6 @@ class Config(object):
                 self.horizontal_magnet['exist'] = False
             finally:
                 pass
-
-
-def angle_to_qins(ki, kf, a3, a4):
-    try:
-        length = min(len(a3), len(a4))
-    except TypeError:
-        length = 1
-    a3 = np.array(a3).reshape(1, -1)
-    a4 = np.array(a4).reshape(1, -1)
-    ones = np.ones([1, length])
-    zeros = np.zeros([1, length])
-    initial_vectors = np.vstack([-ones, zeros, zeros])
-    try:
-        len_ki = len(ki)
-        if len_ki == length:
-            ki_in_s = np.array(ki) * initial_vectors
-        else:
-            ki_in_s = ki[0] * initial_vectors
-    except TypeError:
-        ki_in_s = ki * initial_vectors
-    kf_in_s = kf * rotate_around_z(initial_vectors, np.radians(a4))
-    q_in_s = rotate_around_z(kf_in_s - ki_in_s, - np.radians(a3))
-    return q_in_s
 
 
 def rotate_around_z(vectors, angles):
@@ -483,7 +517,7 @@ class MultiFlexxScan(object):
         a3_a4_array_row = a3_a4_mon_array[:, 0:2].T
         for ind, kf in enumerate(self.kf_list):
             channel_dataframe[ind].loc[:, ['px', 'py', 'pz']] = self._ub_matrix.convert(
-                angle_to_qins(self.ki, kf, a3_a4_array_row[0, :], a3_a4_array_row[1, :]), 'sp').T
+                angle_to_s(self.ki, kf, a3_a4_array_row[0, :], a3_a4_array_row[1, :]), 'sp').T
 
         channel_count_valid_array = [np.zeros([num_flat_frames * num_ch, 2]) for _ in range(len(self.kf_list))]
         for ind in range(num_flat_frames):
@@ -527,13 +561,13 @@ def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, no_po
     a3_list = np.hstack((a3_range, a3_range[-1] * np.ones(len(a4_span_range_high)),
                          a3_range[::-1], a3_range[0] * np.ones(len(a4_span_range_low))))
     a4_list = np.hstack((a4_range_low, a4_span_range_high, a4_range_high, a4_span_range_low))
-    s_locus = angle_to_qins(ki, kf, a3_list, a4_list)
+    s_locus = angle_to_s(ki, kf, a3_list, a4_list)
     p_locus = ub_matrix.convert(s_locus, 'sp')
 
     return np.ndarray.tolist(p_locus[0:2, :].T)
 
 
-def calculate_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, horizontal_magnet=None, no_points=0):
+def scatter_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, no_points=0):
     if no_points == 0:
         no_points = max(int(a3_end - a3_start), 2)
     else:
@@ -545,12 +579,65 @@ def calculate_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, hori
     for nth in range(no_points):
         a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 0] = a3_points[nth]
         a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 1] = a4_points[nth] + a4_mask
-    s_coords = angle_to_qins(ki, kf, a3_a4_array[:, 0], a3_a4_array[:, 1])
+    s_coords = angle_to_s(ki, kf, a3_a4_array[:, 0], a3_a4_array[:, 1])
     p_coords = ub_matrix.convert(s_coords, 'sp')
-    if horizontal_magnet is None:
-        colors = ['#5555C5'] * a3_a4_array.shape[0]
+    # if horizontal_magnet is None:
+    #     colors = ['#5555C5'] * a3_a4_array.shape[0]
+    # else:
+    #     colors = ['#5555C5'] * a3_a4_array.shape[0]
+
+    return np.ndarray.tolist(p_coords[0:2, :].T)
+
+
+def magnet_transmission(A3, A4, ssr, name, north, ub_matrix: UBMatrix):
+    zero_az = azimuthS(ub_matrix.convert(north, 'rs'), ub_matrix.convert(ub_matrix.hkl1, 'rs'))
+    az_ki = np.remainder(zero_az - np.radians(A3) + np.radians(ssr), 2 * np.pi)
+    az_kf = np.remainder(az_ki + np.pi + np.radians(A4), 2 * np.pi)
+
+    file = open(name + '.csv')
+    reader = csv.DictReader(file)
+    theta = []
+    magnet_transmission = []
+    for row in reader:
+        theta.append(float(row['theta']))
+        magnet_transmission.append(float(row['transmission']))
+    magnet_interp = interpolate.interp1d(np.radians(np.array(theta)), np.array(magnet_transmission))
+
+    t = magnet_interp(az_ki) * magnet_interp(az_kf)
+
+    return t
+
+
+def scatter_color(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix: UBMatrix, no_points, ssr, name, north):
+    if name == 'no':
+        return ['cyan'] * A4_CHANNELS * no_points
+
+    if no_points == 0:
+        no_points = max(int(a3_end - a3_start), 2)
     else:
-        colors = ['#5555C5'] * a3_a4_array.shape[0]
+        no_points = int(no_points)
+    a4_mask = np.linspace(-A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_OFFSET * (A4_CHANNELS - 1) / 2, A4_CHANNELS)
+    a3_points = np.linspace(a3_start, a3_end, no_points)
+    a4_points = np.linspace(a4_start, a4_end, no_points)
+    a3_a4_array = np.zeros([A4_CHANNELS * no_points, 2])
+    for nth in range(no_points):
+        a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 0] = a3_points[nth]
+        a3_a4_array[nth * A4_CHANNELS:(nth + 1) * A4_CHANNELS, 1] = a4_points[nth] + a4_mask
+    t = magnet_transmission(a3_a4_array[:, 0], a3_a4_array[:, 1], ssr, name, north, ub_matrix)
+    out = convert_palette(t)
+    return out
 
-    return np.ndarray.tolist(p_coords[0:2, :].T), colors
 
+def convert_palette(t):
+    palette = [np.array([1, 1, 1]), np.array([0.8, 0.8, 0.2]), np.array([0.8, 0.2, 0.2])]
+    color_array = np.zeros([len(t), 3])
+    for i in range(len(t)):
+        if t[i] > 0.999:
+            color_array[i] = palette[0]
+        else:
+            color_array[i] = palette[1] * t[i] + palette[2] * (1 - t[i])
+
+    color_array = (color_array * 255).astype(int)
+
+    out = ["#%02x%02x%02x" % tuple(each) for each in color_array]
+    return out

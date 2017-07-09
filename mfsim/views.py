@@ -3,11 +3,12 @@ from django.shortcuts import render
 import flexxtools as ft
 import numpy as np
 from bokeh.plotting import figure, output_file, show
-from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS
+from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS, Div
 from bokeh.embed import components
 from bokeh.models.widgets import RadioButtonGroup
-from bokeh.layouts import gridplot, column
+from bokeh.layouts import gridplot, column, layout
 from bokeh.resources import CDN, INLINE
+from bokeh.events import MouseMove
 from pyclipper import Pyclipper, PFT_NONZERO, PFT_POSITIVE, PT_SUBJECT, PT_CLIP, scale_from_clipper, scale_to_clipper, CT_UNION, CT_INTERSECTION, ClipperException
 
 fmt2 = '{:.2f}'.format
@@ -61,8 +62,15 @@ def extract_data(get):
     A4_starts = float_each(get['A4_start_list'].split(','))
     A4_ends = float_each(get['A4_end_list'].split(','))
     NPs = float_each(get['NP_list'].split(','))
+    hm = get['horizontal_magnet']
+    if hm != 'no':
+        hm_hkl = float_each([get['hm_h'], get['hm_k'],get['hm_l']])
+        hm_ssr = float(get['hm_ssr'])
+    else:
+        hm_hkl = None
+        hm_ssr = None
     return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=A3_starts,
-                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs)
+                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs, hm=hm, hm_hkl=hm_hkl, hm_ssr=hm_ssr)
 
 
 def make_scan_rows(scan):
@@ -74,12 +82,17 @@ def make_scan_rows(scan):
 
 def make_figures(scan):
     ub_matrix = ft.UBMatrix(scan['latparam'], scan['hkl1'], scan['hkl2'], scan['plot_x'], scan['plot_y'])
-    A3_starts, A3_ends, A4_starts, A4_ends, NPs = (scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'], scan['NPs'])
+    A3_starts, A3_ends, A4_starts, A4_ends= (scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'])
+    NPs = [int(x) for x in scan['NPs']]
     kis = [ft.e_to_k(e) for e in scan['eis']]
     kfs = [ft.e_to_k(e) for e in ft.EF_LIST]
+    hm = scan['hm']
+    hm_hkl = scan['hm_hkl']
+    hm_ssr = scan['hm_ssr']
     unique_kis = sorted(list(set(kis)))
     scan_indexes = [[ind for ind in range(len(kis)) if kis[ind] == ki] for ki in unique_kis]
-    colors = ['#FFCE98', '#F6FF8D', '#94FFD5', '#909CFF', '#FF8AD8']
+    locus_palette = ['#FFCE98', '#F6FF8D', '#94FFD5', '#909CFF', '#FF8AD8']
+
 
     locuses_dict = {}
     scatters_dict = {}
@@ -91,17 +104,19 @@ def make_figures(scan):
         for scan_no in scan_indexes[nth]:
             angles = (A3_starts[scan_no], A3_ends[scan_no], A4_starts[scan_no], A4_ends[scan_no], ub_matrix)
             locuses = [ft.calculate_locus(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
-            scatters_colors = [ft.calculate_coords(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
+            scatter_coords = [ft.scatter_coords(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
+            scatter_colors = [ft.scatter_color(ki, kf, *angles, name=hm, ssr=hm_ssr, north=hm_hkl,
+                                               no_points=NPs[scan_no]) for kf in kfs]
             for i in range(5):
                 clippers[i].AddPath(scale_to_clipper(locuses[i]), PT_SUBJECT)
-                scatter_arrays[i] += scatters_colors[i][0]
-                color_arrays[i] += scatters_colors[i][1]
+                scatter_arrays[i] += scatter_coords[i]
+                color_arrays[i] += scatter_colors[i]
         locuses_ki = [scale_from_clipper(clippers[i].Execute(CT_UNION, PFT_NONZERO)) for i in range(5)]
         locuses_ki_x, locuses_ki_y = split_locus_lists(locuses_ki)
         scatters_ki_x, scatters_ki_y = split_scatter_lists(scatter_arrays)
         common_locus_x, common_locus_y = find_common_coverage(locuses_ki)
         locuses_dict[ki] = [locuses_ki_x, locuses_ki_y, common_locus_x, common_locus_y]
-        scatters_dict[ki] = [scatters_ki_x, scatters_ki_y]
+        scatters_dict[ki] = [scatters_ki_x, scatters_ki_y, color_arrays]
 
     p_col = []
     plots = []
@@ -109,32 +124,32 @@ def make_figures(scan):
     y_axis = np.array(scan['plot_y'])
     for ki in locuses_dict.keys():
         TOOLS = "pan,wheel_zoom,reset,save"
-        p = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
-        p.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
-        p.yaxis.axis_label = 'y * %s' % bracketed_vector(y_axis)
+        plot_coverage = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
+        plot_coverage.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
+        plot_coverage.yaxis.axis_label = 'y * %s' % bracketed_vector(y_axis)
         ticker = SingleIntervalTicker(interval=0.5, num_minor_ticks=1)
-        p.axis.ticker = ticker
-        p.grid.ticker = ticker
+        plot_coverage.axis.ticker = ticker
+        plot_coverage.grid.ticker = ticker
         locus = locuses_dict[ki]
         efs_str = [fmt1(ft.k_to_e(ki) - ft.k_to_e(kf)) for kf in kfs]
         sources = []
-        source = ColumnDataSource(dict(x=[0], y=[0]))
-        se = ColumnDataSource(dict(x=[0], y=[0]))
+        source = ColumnDataSource(dict(x=[0], y=[0], colors=['cyan']))
+        scatter_off = ColumnDataSource(dict(x=[0], y=[0], colors=['cyan']))
         for i in reversed(range(5)):
-            color = colors[i]
+            color = locus_palette[i]
             x_list = locus[0][i]
             y_list = locus[1][i]
-            channel = p.patches(x_list, y_list, alpha=0.35, fill_color=color, line_width=1, legend='dE='+efs_str[i])
-            set_aspect(p, x_list[0], y_list[0], aspect=ub_matrix.figure_aspect)
+            channel = plot_coverage.patches(x_list, y_list, alpha=0.35, fill_color=color, line_width=1, legend='dE='+efs_str[i])
+            set_aspect(plot_coverage, x_list[0], y_list[0], aspect=ub_matrix.figure_aspect)
         for i in range(5):
-            sources.append(ColumnDataSource(dict(x=scatters_dict[ki][0][i], y=scatters_dict[ki][1][i])))
-        channel_scatter = p.circle('x', 'y', size=3, fill_alpha=0.7,
-                                            visible=True, fill_color='cyan', line_alpha=0.2, source=source)
-        common = p.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
+            sources.append(ColumnDataSource(dict(x=scatters_dict[ki][0][i], y=scatters_dict[ki][1][i], colors=scatters_dict[ki][2][i])))
+        channel_scatter = plot_coverage.circle(x='x', y='y', size=4.5, fill_alpha=1,
+                                            visible=True, fill_color='colors', line_alpha=0.2, source=source)
+        common = plot_coverage.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
                            line_color='red')
-        glyph_dots = plot_lattice_points(p, x_axis, y_axis)
+        glyph_dots = plot_lattice_points(plot_coverage, x_axis, y_axis)
         cs = sources
-        callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=se, source=source), code="""
+        callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source), code="""
                 var f = cb_obj.active;
                 data = source.get('data');
                 switch (f) {
@@ -159,20 +174,29 @@ def make_figures(scan):
                 }
                 data['x'] = data2['x'];
                 data['y'] = data2['y'];
-                source.trigger('change');
+                data['colors'] = data2['colors']
+                source.change.emit();
             """)
-        buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
+        en_buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
 
         hover = HoverTool(renderers=[glyph_dots], tooltips=[('coord', '@coord')])
-        p.add_tools(hover)
-        p_col += [buttons, p]
-        plots.append(p)
+        plot_coverage.add_tools(hover)
+        message_div = Div(width=600, height=200)
+        if hm != 'no':
+            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix)
+            ctrl_col = column([en_buttons, plot_radar, message_div])
+        else:
+            ctrl_col = column([en_buttons, plot_coverage, message_div])
+
+        plots.append(plot_coverage)
+        p_col.append([plot_coverage, ctrl_col])
     for each in plots:
         each.x_range = plots[0].x_range
         each.y_range = plots[0].y_range
 
-    grid = column(*p_col)
+    grid = layout(*p_col)
     script, div = components(grid)
+
     return script, div
 
 
@@ -252,3 +276,99 @@ def split_scatter_lists(scatter_arrays):
         scatter_x.append(scatter_array[:, 0])
         scatter_y.append(scatter_array[:, 1])
     return scatter_x, scatter_y
+
+
+def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix):
+    radar = figure(plot_width=400, plot_height=400, title="Orientations", x_range=[-3, 3], y_range=[-3, 3], tools=[])
+    ki_source, kf_source, q_source = initialize_radar(radar, name)
+
+    hkl1s, north_s = ub_matrix.convert(hkl1, 'rs'), ub_matrix.convert(north, 'rs')
+    azimuth_offset = ft.azimuthS(north_s, hkl1s) + ssr
+
+    main_plot.js_on_event(MouseMove, CustomJS(args=dict(div=div, en_button=en_button,
+                                                 ki_source=ki_source, kf_source=kf_source, q_source=q_source),
+   code="""
+        ki = {ki};
+        hkl1 = {hkl1};
+        btn = en_button.active;
+        ef_dict = {{0:2.5, 1:3.0, 2:3.5, 3:4.0, 4:4.5, 5:1000}};
+        ef = ef_dict[btn];
+        kf = etok(ef);
+        ps_mat = math.matrix({ps_mat});
+        pr_mat = math.matrix({pr_mat});
+        p = math.matrix([cb_obj['x'], cb_obj['y'], 0]);
+        s = math.multiply(ps_mat, p);
+        r = math.multiply(pr_mat, p);
+        div.text = 'Q: ' + String([r.get([0]).toFixed(2), r.get([1]).toFixed(2), r.get([2]).toFixed(2)]) + '<br>';
+        
+        try{{
+            [alpha, beta, gamma] = find_triangle(math.norm(s), ki, kf);
+            A4 = alpha;
+            A3 = -1 * (azimuthS(hkl1, s) + gamma);
+            div.text += 'A3: ' + toDeg(A3).toFixed(2) + ', A4: ' + toDeg(A4).toFixed(2);
+            
+            
+            offset = {offset};
+            ki_az = -A3 + offset + math.pi/2;
+            kf_az = ki_az - math.pi + A4;
+            ki_source['data']['x'][1] = ki * math.cos(ki_az);
+            ki_source['data']['y'][1] = ki * math.sin(ki_az);
+            ki_source.change.emit();
+            
+            kf_source['data']['x'][1] = kf * math.cos(kf_az);
+            kf_source['data']['y'][1] = kf * math.sin(kf_az);
+            kf_source.change.emit();
+            
+            q_source['data']['x'][1] = ki * math.cos(ki_az) + kf * math.cos(kf_az);
+            q_source['data']['y'][1] = ki * math.sin(ki_az) + kf * math.sin(kf_az);
+            q_source.change.emit();
+            }}
+         catch(except) {{
+            div.text += "No channel selected/ Scattering triangle cannot close."
+            }}   
+        
+
+        
+    """.format(ps_mat=str(ub_matrix.get_matrix('ps').tolist()),
+               pr_mat=str(ub_matrix.get_matrix('pr').tolist()),
+               ki=ki, hkl1=hkl1, north=north, offset=azimuth_offset
+               )))
+
+    return radar
+
+
+def initialize_radar(radar, name):
+    HM_RED = {
+        'HM-1': [[15, 65], [97, 145], [215, 263], [295, 345]],
+        'HM-2': [[-10, 10], [170, 190]]
+    }
+    HM_YELLOW = {
+        'HM-1': [[]],
+        'HM-2': [[-40, 40], [140, 220]]
+    }
+
+    try:
+        radar.annular_wedge(x=0, y=0, inner_radius=0.3, outer_radius=2.5,
+                            start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_YELLOW[name]],
+                            end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_YELLOW[name]],
+                            color='orange', alpha=0.4)
+    except IndexError:
+        pass
+
+    try:
+        radar.annular_wedge(x=0, y=0, inner_radius=0.3, outer_radius=2.7,
+                            start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_RED[name]],
+                            end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_RED[name]],
+                            color='red', alpha=0.4)
+    except IndexError:
+        pass
+
+    ki_source = ColumnDataSource(dict(x=[0, -1], y=[0, 1]))
+    kf_source = ColumnDataSource(dict(x=[0, 1], y=[0, 1]))
+    q_source = ColumnDataSource(dict(x=[0, 0], y=[0, 1.41]))
+
+    radar.line('x', 'y', color='blue', source=ki_source, line_width=2)
+    radar.line('x', 'y', color='red', source=kf_source, line_width=2)
+    radar.line('x', 'y', color='green', source=q_source, line_width=2)
+
+    return ki_source, kf_source, q_source
