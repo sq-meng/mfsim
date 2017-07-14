@@ -27,6 +27,11 @@
 <body>
 <div id="root" class="bigbox">
     <h3 id="welcome" class="section_head ui-corner-all">V2 MultiFLEXX Q-space coverage simulator</h3>
+    <div id="instruction" class="graphic">
+        <p>Choose an Ef channel and hover mouse over Q-space plot to update angle, Q values and orientation plot.<br>
+        With magnet involved, white dots mean 100% transmission, anything below 100% is at least yellow, and turns red
+        with decreasing transmission.</p>
+    </div>
     <div id="figure" class="graphic">
         {%if submitted%}
         {{graph_div|safe}}

@@ -196,7 +196,7 @@ def rotZ(coord, angle):
 
 def azimuthS(k1, k2):
     #
-    # Calculates how much k1 need to be rotated counterclockwise to reack k2.
+    # Calculates how much k1 need to be rotated counterclockwise to reach k2.
     #
     if np.cross(k1, k2)[2] >= 0:
         return np.arccos(np.dot(k1, k2) / np.linalg.norm(k1) / np.linalg.norm(k2))

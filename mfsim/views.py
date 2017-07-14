@@ -122,7 +122,7 @@ def make_figures(scan):
     plots = []
     x_axis = np.array(scan['plot_x'])
     y_axis = np.array(scan['plot_y'])
-    for ki in locuses_dict.keys():
+    for ki in unique_kis:
         TOOLS = "pan,wheel_zoom,reset,save"
         plot_coverage = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
         plot_coverage.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
@@ -263,12 +263,12 @@ def plot_lattice_points(p, x_axis, y_axis):
     x, y = np.mgrid[-10:10:0.5, -10:10:0.5]
     xr = list(np.reshape(x, -1))
     yr = list(np.reshape(y, -1))
-    ttip = []
+    tooltip = []
     for cx, cy in zip(xr, yr):
-        ttip.append(bracketed_vector(cx * x_axis + cy * y_axis))
-    source = ColumnDataSource(data=dict(x=xr, y=yr, coord=ttip))
-    glyph = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
-    return glyph
+        tooltip.append(bracketed_vector(cx * x_axis + cy * y_axis))
+    source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip))
+    circles = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
+    return circles
 
 
 def split_scatter_lists(scatter_arrays):
@@ -367,8 +367,8 @@ def initialize_radar(radar, name):
     kf_source = ColumnDataSource(dict(x=[0, 1], y=[0, 1]))
     q_source = ColumnDataSource(dict(x=[0, 0], y=[0, 1.41]))
 
-    radar.line('x', 'y', color='blue', source=ki_source, line_width=2)
-    radar.line('x', 'y', color='red', source=kf_source, line_width=2)
-    radar.line('x', 'y', color='green', source=q_source, line_width=2)
+    radar.line('x', 'y', color='blue', source=ki_source, line_width=2, legend="ki")
+    radar.line('x', 'y', color='red', source=kf_source, line_width=2, legend="kf")
+    radar.line('x', 'y', color='green', source=q_source, line_width=2, legend="Q")
 
     return ki_source, kf_source, q_source
