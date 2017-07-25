@@ -185,7 +185,7 @@
     var is_invalid = function is_invalid(value, name) {
         if (isNaN(value)) {
             return true;
-        } else if (name.slice(0, 2) === "A4" && (value > 110 || value < 60)) {
+        } else if (name.slice(0, 2) === "A4" && (value > 110 || value < 50)) {
             return true;
         } else if (name === "ei" && value < 3) {
             return true;
