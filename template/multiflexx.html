@@ -11,7 +11,7 @@
 
     <!--<script src="https://code.jquery.com/jquery-3.1.1.js"></script>-->
     <script src="{% static "js/jquery.js" %}"></script>
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/mathjs/3.14.2/math.min.js"></script>
+    <script src="{% static "js/math.min.js" %}"></script>
     <script src="{% static "js/flexmath.js" %}"></script>
     {{css_resources|safe}}
     {{js_resources|safe}}
@@ -185,7 +185,7 @@
     var is_invalid = function is_invalid(value, name) {
         if (isNaN(value)) {
             return true;
-        } else if (name.slice(0, 2) === "A4" && (value > 110 || value < 50)) {
+        } else if (name.slice(0, 2) === "A4" && (Math.abs(value) > 122 || Math.abs(value) < 50)) {
             return true;
         } else if (name === "ei" && value < 3) {
             return true;
@@ -291,7 +291,6 @@
     $("#scan_error_box").hide();
     $(".editable").editable(function(value, settings) {return(value);})
     $("#scans_tbody").sortable()
-    $("#scans_tbody").disableSelection()
     $("#scans_table").on("click", ".remove_button", remove_buttonfun)
     $("#scans_table").on("click", ".clone_button", clone_buttonfun);
 

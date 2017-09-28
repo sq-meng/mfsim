@@ -629,6 +629,7 @@ def scatter_color(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix: UBMatri
 
 
 def convert_palette(t):
+    # normal; affected; blocked
     palette = [np.array([1, 1, 1]), np.array([0.8, 0.8, 0.2]), np.array([0.8, 0.2, 0.2])]
     color_array = np.zeros([len(t), 3])
     for i in range(len(t)):

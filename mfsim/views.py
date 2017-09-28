@@ -268,6 +268,7 @@ def plot_lattice_points(p, x_axis, y_axis):
         tooltip.append(bracketed_vector(cx * x_axis + cy * y_axis))
     source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip))
     circles = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
+    p.circle(0, 0, size=14, fill_alpha=0, line_color='red', line_width=1.5)
     return circles
 
 
