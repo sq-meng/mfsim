@@ -259,16 +259,27 @@ def set_aspect(fig, x, y, aspect=1, margin=0.1):
     fig.y_range = Range1d(ycenter-0.5*height, ycenter+0.5*height)
 
 
-def plot_lattice_points(p, x_axis, y_axis):
+def plot_lattice_points(graph, x_axis, y_axis):
     x, y = np.mgrid[-10:10:0.5, -10:10:0.5]
     xr = list(np.reshape(x, -1))
     yr = list(np.reshape(y, -1))
     tooltip = []
+    fill_alpha = []
+    size = []
+    low_index_points = []
     for cx, cy in zip(xr, yr):
-        tooltip.append(bracketed_vector(cx * x_axis + cy * y_axis))
-    source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip))
-    circles = p.circle('x', 'y', source=source, size=9, fill_alpha=0.3)
-    p.circle(0, 0, size=14, fill_alpha=0, line_color='red', line_width=1.5)
+        coord = cx * x_axis + cy * y_axis
+        tooltip.append(bracketed_vector(coord))
+        if (coord == coord.astype(int)).all():
+            fill_alpha.append(0.3)
+            size.append(9)
+            low_index_points.append((xr, yr))
+        else:
+            fill_alpha.append(0)
+            size.append(5)
+    source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip, fill_alpha=fill_alpha, size=size))
+    circles = graph.circle('x', 'y', source=source, size='size', fill_alpha='fill_alpha')
+    graph.circle(0, 0, size=14, line_color='red', line_width=1.5)
     return circles
 
 
