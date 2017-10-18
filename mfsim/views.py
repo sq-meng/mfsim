@@ -97,6 +97,7 @@ def make_figures(scan):
     locuses_dict = {}
     scatters_dict = {}
     colors_dict = {}
+    senses_dict = {}
     for nth, ki in enumerate(unique_kis):
         clippers = [Pyclipper() for _ in range(5)]
         scatter_arrays = [[] for _ in range(5)]
@@ -107,6 +108,11 @@ def make_figures(scan):
             scatter_coords = [ft.scatter_coords(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
             scatter_colors = [ft.scatter_color(ki, kf, *angles, name=hm, ssr=hm_ssr, north=hm_hkl,
                                                no_points=NPs[scan_no]) for kf in kfs]
+            if A4_starts[scan_no] > 0:
+                senses_dict[ki] = 1
+            else:
+                senses_dict[ki] = -1
+
             for i in range(5):
                 clippers[i].AddPath(scale_to_clipper(locuses[i]), PT_SUBJECT)
                 scatter_arrays[i] += scatter_coords[i]
@@ -148,6 +154,7 @@ def make_figures(scan):
         common = plot_coverage.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
                            line_color='red')
         glyph_dots = plot_lattice_points(plot_coverage, x_axis, y_axis)
+        plot_brillouin_zones(plot_coverage, x_axis, y_axis)
         cs = sources
         callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source), code="""
                 var f = cb_obj.active;
@@ -184,7 +191,7 @@ def make_figures(scan):
         plot_coverage.add_tools(hover)
         message_div = Div(width=600, height=200)
         if hm != 'no':
-            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix)
+            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix, senses_dict[ki])
             plot_radar.axis.visible = False
             ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
         else:
@@ -279,8 +286,12 @@ def plot_lattice_points(graph, x_axis, y_axis):
             size.append(5)
     source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip, fill_alpha=fill_alpha, size=size))
     circles = graph.circle('x', 'y', source=source, size='size', fill_alpha='fill_alpha')
-    graph.circle(0, 0, size=14, line_color='red', line_width=1.5)
+    graph.circle(0, 0, size=20, line_color='blue', line_width=1.5, fill_alpha=0)
     return circles
+
+
+def plot_brillouin_zones(graph, x_axis, y_axis):
+    pass
 
 
 def split_scatter_lists(scatter_arrays):
@@ -292,7 +303,7 @@ def split_scatter_lists(scatter_arrays):
     return scatter_x, scatter_y
 
 
-def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix):
+def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix, sense):
     radar = figure(plot_width=400, plot_height=400, title="Orientations", x_range=[-3, 3], y_range=[-3, 3], tools=[])
     ki_source, kf_source, q_source = initialize_radar(radar, name)
 
@@ -304,6 +315,7 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix)
         code="""
             ki = {ki};
             hkl1 = {hkl1};
+            sense = {sense};
             btn = en_button.active;
             ef_dict = {{0:2.5, 1:3.0, 2:3.5, 3:4.0, 4:4.5, 5:1000}};
             ef = ef_dict[btn];
@@ -317,8 +329,8 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix)
             
             try{{
                 [alpha, beta, gamma] = find_triangle(math.norm(s), ki, kf);
-                A4 = alpha;
-                A3 = -1 * (azimuthS(hkl1, s) + gamma);
+                A4 = alpha * sense;
+                A3 = -1 * (azimuthS(hkl1, s) + gamma * sense);
                 div.text += 'A3: ' + toDeg(A3).toFixed(2) + ', A4: ' + toDeg(A4).toFixed(2);
                 offset = {offset};
                 ki_az = -A3 + offset + math.pi/2;
@@ -343,7 +355,7 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix)
             
         """.format(ps_mat=str(ub_matrix.get_matrix('ps').tolist()),
                    pr_mat=str(ub_matrix.get_matrix('pr').tolist()),
-                   ki=ki, hkl1=hkl1, north=north, offset=azimuth_offset
+                   ki=ki, hkl1=list(hkl1s), north=north, offset=azimuth_offset, sense=sense
                    )))
 
     return radar
