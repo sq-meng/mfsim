@@ -90,7 +90,7 @@ def make_figures(scan):
     hm_hkl = scan['hm_hkl']
     hm_ssr = scan['hm_ssr']
     unique_kis = sorted(list(set(kis)))
-    scan_indexes = [[ind for ind in range(len(kis)) if kis[ind] == ki] for ki in unique_kis]
+    indexes_of_ki = [[ind for ind in range(len(kis)) if kis[ind] == ki] for ki in unique_kis]
     locus_palette = ['#FFCE98', '#F6FF8D', '#94FFD5', '#909CFF', '#FF8AD8']
 
 
@@ -98,11 +98,11 @@ def make_figures(scan):
     scatters_dict = {}
     colors_dict = {}
     senses_dict = {}
-    for nth, ki in enumerate(unique_kis):
+    for nth_ki, ki in enumerate(unique_kis):
         clippers = [Pyclipper() for _ in range(5)]
         scatter_arrays = [[] for _ in range(5)]
         color_arrays = [[] for _ in range(5)]
-        for scan_no in scan_indexes[nth]:
+        for scan_no in indexes_of_ki[nth_ki]:
             angles = (A3_starts[scan_no], A3_ends[scan_no], A4_starts[scan_no], A4_ends[scan_no], ub_matrix)
             locuses = [ft.calculate_locus(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
             scatter_coords = [ft.scatter_coords(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
@@ -279,14 +279,14 @@ def plot_lattice_points(graph, x_axis, y_axis):
         tooltip.append(bracketed_vector(coord))
         if (coord == coord.astype(int)).all():
             fill_alpha.append(0.3)
-            size.append(9)
+            size.append(12)
             low_index_points.append((xr, yr))
         else:
             fill_alpha.append(0)
-            size.append(5)
+            size.append(9)
     source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip, fill_alpha=fill_alpha, size=size))
     circles = graph.circle('x', 'y', source=source, size='size', fill_alpha='fill_alpha')
-    graph.circle(0, 0, size=20, line_color='blue', line_width=1.5, fill_alpha=0)
+    graph.circle_x(0, 0, size=20, line_color='blue', line_width=1.5, fill_alpha=0)
     return circles
 
 

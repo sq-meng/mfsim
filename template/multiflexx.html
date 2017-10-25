@@ -231,7 +231,9 @@
     var clone_buttonfun = function clone_buttonfun(event) {
         var node = $(event.target).closest("tr");
         var clone = node.clone();
+        clone.fadeTo(0, 0);
         node.after(clone);
+        clone.fadeTo(500, 1);
         associate_buttons();
     }
 
