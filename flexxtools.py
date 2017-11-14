@@ -610,7 +610,7 @@ def magnet_transmission(A3, A4, ssr, name, north, ub_matrix: UBMatrix):
 
 def scatter_color(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix: UBMatrix, no_points, ssr, name, north):
     if name == 'no':
-        return ['cyan'] * A4_CHANNELS * no_points
+        return ['white'] * A4_CHANNELS * no_points
 
     if no_points == 0:
         no_points = max(int(a3_end - a3_start), 2)

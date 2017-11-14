@@ -93,7 +93,6 @@ def make_figures(scan):
     indexes_of_ki = [[ind for ind in range(len(kis)) if kis[ind] == ki] for ki in unique_kis]
     locus_palette = ['#FFCE98', '#F6FF8D', '#94FFD5', '#909CFF', '#FF8AD8']
 
-
     locuses_dict = {}
     scatters_dict = {}
     colors_dict = {}
@@ -139,8 +138,8 @@ def make_figures(scan):
         locus = locuses_dict[ki]
         efs_str = [fmt1(ft.k_to_e(ki) - ft.k_to_e(kf)) for kf in kfs]
         sources = []
-        source = ColumnDataSource(dict(x=[0], y=[0], colors=['cyan']))
-        scatter_off = ColumnDataSource(dict(x=[0], y=[0], colors=['cyan']))
+        source = ColumnDataSource(dict(x=[0], y=[0], colors=['white']))
+        scatter_off = ColumnDataSource(dict(x=[0], y=[0], colors=['white']))
         for i in reversed(range(5)):
             color = locus_palette[i]
             x_list = locus[0][i]
@@ -187,7 +186,7 @@ def make_figures(scan):
         en_buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
         en_button_caption = Div()
         en_button_caption.text = """<span style="font-weight: bold;">Active channel:</span>"""
-        hover = HoverTool(renderers=[glyph_dots], tooltips=[('coord', '@coord')])
+        hover = HoverTool(renderers=[glyph_dots], tooltips=[('Q', '@coord')])
         plot_coverage.add_tools(hover)
         message_div = Div(width=600, height=200)
         if hm != 'no':
@@ -195,7 +194,11 @@ def make_figures(scan):
             plot_radar.axis.visible = False
             ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
         else:
-            ctrl_col = column([en_button_caption, en_buttons, message_div])
+            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], scan['hkl1'], 0,
+                                    ub_matrix, senses_dict[ki])
+            plot_radar.axis.visible = False
+            ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
+            # ctrl_col = column([en_button_caption, en_buttons, message_div])
 
         plots.append(plot_coverage)
         p_col.append([plot_coverage, ctrl_col])
@@ -303,9 +306,9 @@ def split_scatter_lists(scatter_arrays):
     return scatter_x, scatter_y
 
 
-def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix, sense):
+def draw_radar(main_plot, div, en_button, hm_name, ki, hkl1, north, ssr, ub_matrix, sense):
     radar = figure(plot_width=400, plot_height=400, title="Orientations", x_range=[-3, 3], y_range=[-3, 3], tools=[])
-    ki_source, kf_source, q_source = initialize_radar(radar, name)
+    ki_source, kf_source, q_source = initialize_radar(radar, hm_name)
 
     hkl1s, north_s = ub_matrix.convert(hkl1, 'rs'), ub_matrix.convert(north, 'rs')
     azimuth_offset = ft.azimuthS(north_s, hkl1s) + ssr
@@ -364,19 +367,22 @@ def draw_radar(main_plot, div, en_button, name, ki, hkl1, north, ssr, ub_matrix,
 def initialize_radar(radar, name):
     HM_RED = {
         'HM-1': [[15, 65], [97, 145], [215, 263], [295, 345]],
-        'HM-2': [[-10, 10], [170, 190]]
+        'HM-2': [[-10, 10], [170, 190]],
     }
     HM_YELLOW = {
-        'HM-1': [[]],
-        'HM-2': [[-40, 40], [140, 220]]
+        'HM-2': [[-40, 40], [140, 220]],
     }
+    HM_GREEN = {
+        'no': [[0, 360]]
+    }
+
 
     try:
         radar.annular_wedge(x=0, y=0, inner_radius=0.3, outer_radius=2.5,
                             start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_YELLOW[name]],
                             end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_YELLOW[name]],
                             color='orange', alpha=0.4)
-    except IndexError:
+    except (IndexError, KeyError):
         pass
 
     try:
@@ -384,7 +390,15 @@ def initialize_radar(radar, name):
                             start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_RED[name]],
                             end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_RED[name]],
                             color='red', alpha=0.4)
-    except IndexError:
+    except (IndexError, KeyError):
+        pass
+
+    try:
+        radar.annular_wedge(x=0, y=0, inner_radius=1, outer_radius=2,
+                            start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_GREEN[name]],
+                            end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_GREEN[name]],
+                            color='green', alpha=0.4)
+    except (IndexError, KeyError):
         pass
 
     ki_source = ColumnDataSource(dict(x=[0, -1], y=[0, 1]))
