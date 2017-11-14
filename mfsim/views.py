@@ -410,3 +410,7 @@ def initialize_radar(radar, name):
     radar.line('x', 'y', color='green', source=q_source, line_width=2, legend="Q")
 
     return ki_source, kf_source, q_source
+
+
+def handler500(request):
+    return render(request, "500.html", {})
