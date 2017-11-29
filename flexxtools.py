@@ -21,7 +21,7 @@ _fmt_2 = '{:.2f}'.format
 A4_CHANNELS = 31
 A4_OFFSET = 2.5
 EF_LIST = [2.5, 3.0, 3.5, 4.0, 4.5]
-
+EF_CHANNELS = len(EF_LIST)
 
 def elegant_float(num):
     try:
@@ -41,7 +41,12 @@ def k_to_e(k):
 class UBMatrix(object):
     def __init__(self, *args, config=None):
         if config is None:
-            self._latparam, self.hkl1, self.hkl2, self._plot_x, self._plot_y = args
+            try:
+                self._latparam, self.hkl1, self.hkl2, self._plot_x, self._plot_y = args
+            except ValueError:
+                self._latparam, self.hkl1, self.hkl2 = args
+                self._plot_x = None
+                self._plot_y = None
         else:
             self._latparam = config.sample['latparam']
             self.hkl1 = config.alignment['hkl1']
@@ -49,12 +54,15 @@ class UBMatrix(object):
             self._plot_x = config.plot['x']
             self._plot_y = config.plot['y']
         self.conversion_matrices = {}
+        self.conversion_matrices['ll'] = np.diag([1, 1, 1])
         self.conversion_matrices['bl'] = self._calculate_bl()
         self.conversion_matrices['rl'] = self._calculate_rl()
         self.conversion_matrices['sl'] = self._calculate_sl()
-        self.conversion_matrices['pl'] = self._calculate_pl()
-        self.conversion_matrices['ll'] = np.diag([1, 1, 1])
-        self.figure_aspect = self._calculate_aspect()
+        self.conversion_matrices['pl'] = None
+        if self._plot_x is not None:
+            self.conversion_matrices['pl'] = self._calculate_pl()
+            self.figure_aspect = self._calculate_aspect()
+
 
     def _calculate_bl(self):
         lattice_parameters = self._latparam
@@ -106,6 +114,10 @@ class UBMatrix(object):
         p_in_l = np.array([px_in_l, py_in_l, pz_in_l]).T
         return p_in_l
 
+    def calculate_pl(self):
+        self.conversion_matrices['pl'] = self._calculate_pl()
+        self.figure_aspect = self._calculate_aspect()
+
     def _calculate_aspect(self):
         plot_x_r = self._plot_x
         plot_y_r = self._plot_y
@@ -121,6 +133,7 @@ class UBMatrix(object):
             target_system = sys[1]
             source_to_l_matrix = self.conversion_matrices[source_system + 'l']
             target_to_l_matrix = self.conversion_matrices[target_system + 'l']
+
             conversion_matrix = np.dot(np.linalg.inv(target_to_l_matrix), source_to_l_matrix)
             self.conversion_matrices[sys] = conversion_matrix
             self.conversion_matrices[sys[::-1]] = np.linalg.inv(conversion_matrix)
@@ -204,11 +217,17 @@ def azimuthS(k1, k2):
         return -1 * np.arccos(np.dot(k1, k2) / np.linalg.norm(k1) / np.linalg.norm(k2))
 
 
-def find_kS(ki,kf, QS):
+def find_kS(ki,kf, QS, sense=1):
+    assert (sense == 1 or sense == -1) and "scattering sense must be +1 or -1."
+
     QSL = np.linalg.norm(QS)
-    alpha, beta, gamma = find_triangle_angles(QSL, ki, kf)
-    kiS = -rotZ(QS, gamma) / QSL * ki
-    kfS = rotZ(QS, -beta) / QSL * kf
+    try:
+        alpha, beta, gamma = find_triangle_angles(QSL, ki, kf)
+    except ValueError:
+        return 0, 0
+
+    kiS = -rotZ(QS, gamma * sense) / QSL * ki
+    kfS = rotZ(QS, -beta * sense) / QSL * kf
     return kiS, kfS
 
 
@@ -550,6 +569,9 @@ class MultiFlexxScan(object):
 
 def calculate_locus(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, no_points=0):
     a4_span = (A4_CHANNELS - 1) * A4_OFFSET
+    if a3_start < a3_end:
+        a3_start, a3_end = (a3_end, a3_start)
+        a4_start, a4_end = (a4_end, a4_start)
     if no_points == 0:
         no_points = max(int(a3_end - a3_start), 2)
     a3_range = np.linspace(a3_start, a3_end, no_points)
@@ -587,6 +609,21 @@ def scatter_coords(ki, kf, a3_start, a3_end, a4_start, a4_end, ub_matrix, no_poi
     #     colors = ['#5555C5'] * a3_a4_array.shape[0]
 
     return np.ndarray.tolist(p_coords[0:2, :].T)
+
+
+def spurion_in_P(ki, kf, GRs, ub_matrix: UBMatrix, sense=1):
+    spurions = [[], []]
+    for GR in GRs:
+        GS = ub_matrix.convert(GR, 'rs')
+        kiS_A, kfS_A_unscaled = find_kS(ki, ki, GS, sense)
+        kfS_A = kfS_A_unscaled * kf / ki
+        kiS_B_unscaled, kfS_B = find_kS(kf, kf, GS, sense)
+        kiS_B = kiS_B_unscaled * ki / kf
+        QP_A = ub_matrix.convert(kfS_A - kiS_A, 'sp')
+        QP_B = ub_matrix.convert(kfS_B - kiS_B, 'sp')
+        spurions[0].append(QP_A)
+        spurions[1].sppend(QP_B)
+    return spurions
 
 
 def magnet_transmission(A3, A4, ssr, name, north, ub_matrix: UBMatrix):

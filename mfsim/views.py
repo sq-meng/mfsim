@@ -2,6 +2,7 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import render
 import flexxtools as ft
 import numpy as np
+import xtal
 from bokeh.plotting import figure, output_file, show
 from bokeh.models import Range1d, HoverTool, ColumnDataSource, SingleIntervalTicker, CustomJS, Div, PreText
 from bokeh.embed import components
@@ -98,9 +99,9 @@ def make_figures(scan):
     colors_dict = {}
     senses_dict = {}
     for nth_ki, ki in enumerate(unique_kis):
-        clippers = [Pyclipper() for _ in range(5)]
-        scatter_arrays = [[] for _ in range(5)]
-        color_arrays = [[] for _ in range(5)]
+        clippers = [Pyclipper() for _ in range(ft.EF_CHANNELS)]
+        scatter_arrays = [[] for _ in range(ft.EF_CHANNELS)]
+        color_arrays = [[] for _ in range(ft.EF_CHANNELS)]
         for scan_no in indexes_of_ki[nth_ki]:
             angles = (A3_starts[scan_no], A3_ends[scan_no], A4_starts[scan_no], A4_ends[scan_no], ub_matrix)
             locuses = [ft.calculate_locus(ki, kf, *angles, no_points=NPs[scan_no]) for kf in kfs]
@@ -112,11 +113,11 @@ def make_figures(scan):
             else:
                 senses_dict[ki] = -1
 
-            for i in range(5):
+            for i in range(ft.EF_CHANNELS):
                 clippers[i].AddPath(scale_to_clipper(locuses[i]), PT_SUBJECT)
                 scatter_arrays[i] += scatter_coords[i]
                 color_arrays[i] += scatter_colors[i]
-        locuses_ki = [scale_from_clipper(clippers[i].Execute(CT_UNION, PFT_NONZERO)) for i in range(5)]
+        locuses_ki = [scale_from_clipper(clippers[i].Execute(CT_UNION, PFT_NONZERO)) for i in range(ft.EF_CHANNELS)]
         locuses_ki_x, locuses_ki_y = split_locus_lists(locuses_ki)
         scatters_ki_x, scatters_ki_y = split_scatter_lists(scatter_arrays)
         common_locus_x, common_locus_y = find_common_coverage(locuses_ki)
@@ -129,33 +130,35 @@ def make_figures(scan):
     y_axis = np.array(scan['plot_y'])
     for ki in unique_kis:
         TOOLS = "pan,wheel_zoom,reset,save"
-        plot_coverage = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
-        plot_coverage.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
-        plot_coverage.yaxis.axis_label = 'y * %s' % bracketed_vector(y_axis)
+        main_plot = figure(plot_width=700, plot_height=600, title='Ei = %s meV' % fmt2(ft.k_to_e(ki)), tools=TOOLS)
+        main_plot.xaxis.axis_label = 'x * %s' % bracketed_vector(x_axis)
+        main_plot.yaxis.axis_label = 'y * %s' % bracketed_vector(y_axis)
         ticker = SingleIntervalTicker(interval=0.5, num_minor_ticks=1)
-        plot_coverage.axis.ticker = ticker
-        plot_coverage.grid.ticker = ticker
+        main_plot.axis.ticker = ticker
+        main_plot.grid.ticker = ticker
         locus = locuses_dict[ki]
         efs_str = [fmt1(ft.k_to_e(ki) - ft.k_to_e(kf)) for kf in kfs]
         sources = []
-        source = ColumnDataSource(dict(x=[0], y=[0], colors=['white']))
-        scatter_off = ColumnDataSource(dict(x=[0], y=[0], colors=['white']))
-        for i in reversed(range(5)):
+        source_handle = ColumnDataSource(dict(x=[], y=[], colors=[]))
+        scatter_off = ColumnDataSource(dict(x=[], y=[], colors=[]))
+        for i in reversed(range(ft.EF_CHANNELS)):
             color = locus_palette[i]
             x_list = locus[0][i]
             y_list = locus[1][i]
-            channel = plot_coverage.patches(x_list, y_list, alpha=0.35, fill_color=color, line_width=1, legend='dE='+efs_str[i])
-            set_aspect(plot_coverage, x_list[0], y_list[0], aspect=ub_matrix.figure_aspect)
-        for i in range(5):
+            main_plot.patches(x_list, y_list, alpha=0.35, fill_color=color, muted_fill_color='black', muted_fill_alpha=0.01,
+                                        muted_line_alpha=0.1, line_width=1, legend='dE='+efs_str[i])
+            set_aspect(main_plot, x_list[0], y_list[0], aspect=ub_matrix.figure_aspect)
+        for i in range(ft.EF_CHANNELS):
             sources.append(ColumnDataSource(dict(x=scatters_dict[ki][0][i], y=scatters_dict[ki][1][i], colors=scatters_dict[ki][2][i])))
-        channel_scatter = plot_coverage.circle(x='x', y='y', size=4.5, fill_alpha=1,
-                                            visible=True, fill_color='colors', line_alpha=0.2, source=source)
-        common = plot_coverage.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
-                           line_color='red')
-        glyph_dots = plot_lattice_points(plot_coverage, x_axis, y_axis)
-        plot_brillouin_zones(plot_coverage, x_axis, y_axis)
+        main_plot.circle(x='x', y='y', size=4.5, fill_alpha=1,
+                                            visible=True, fill_color='colors', line_alpha=0.2, source=source_handle)
+        main_plot.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
+                           line_color='red', muted_line_alpha=0.0, muted_fill_alpha=0.0)
+        glyph_dots = plot_lattice_points(main_plot, x_axis, y_axis)
+        main_plot.legend.click_policy = 'mute'
+        plot_brillouin_zones(main_plot, x_axis, y_axis)
         cs = sources
-        callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source), code="""
+        callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source_handle), code="""
                 var f = cb_obj.active;
                 data = source.get('data');
                 switch (f) {
@@ -187,21 +190,21 @@ def make_figures(scan):
         en_button_caption = Div()
         en_button_caption.text = """<span style="font-weight: bold;">Active channel:</span>"""
         hover = HoverTool(renderers=[glyph_dots], tooltips=[('Q', '@coord')])
-        plot_coverage.add_tools(hover)
+        main_plot.add_tools(hover)
         message_div = Div(width=600, height=200)
         if hm != 'no':
-            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix, senses_dict[ki])
+            plot_radar = draw_radar(main_plot, message_div, en_buttons, hm, ki, scan['hkl1'], hm_hkl, hm_ssr, ub_matrix, senses_dict[ki])
             plot_radar.axis.visible = False
             ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
         else:
-            plot_radar = draw_radar(plot_coverage, message_div, en_buttons, hm, ki, scan['hkl1'], scan['hkl1'], 0,
+            plot_radar = draw_radar(main_plot, message_div, en_buttons, hm, ki, scan['hkl1'], scan['hkl1'], 0,
                                     ub_matrix, senses_dict[ki])
             plot_radar.axis.visible = False
             ctrl_col = column([en_button_caption, en_buttons, plot_radar, message_div])
             # ctrl_col = column([en_button_caption, en_buttons, message_div])
 
-        plots.append(plot_coverage)
-        p_col.append([plot_coverage, ctrl_col])
+        plots.append(main_plot)
+        p_col.append([main_plot, ctrl_col])
     for each in plots:
         each.x_range = plots[0].x_range
         each.y_range = plots[0].y_range
@@ -269,7 +272,7 @@ def set_aspect(fig, x, y, aspect=1, margin=0.1):
     fig.y_range = Range1d(ycenter-0.5*height, ycenter+0.5*height)
 
 
-def plot_lattice_points(graph, x_axis, y_axis):
+def plot_lattice_points(graph, x_axis, y_axis, bz3d=None):
     x, y = np.mgrid[-10:10:0.5, -10:10:0.5]
     xr = list(np.reshape(x, -1))
     yr = list(np.reshape(y, -1))
@@ -397,7 +400,7 @@ def initialize_radar(radar, name):
         radar.annular_wedge(x=0, y=0, inner_radius=1, outer_radius=2,
                             start_angle=[np.radians(x[0]) + np.pi/2 for x in HM_GREEN[name]],
                             end_angle=[np.radians(x[1]) + np.pi/2 for x in HM_GREEN[name]],
-                            color='green', alpha=0.4)
+                            color='green', alpha=0.4, line_alpha=0)
     except (IndexError, KeyError):
         pass
 

@@ -56,7 +56,7 @@
                 <tbody id="scans_tbody">
                 {%for item in scan_rows%}
                 <tr class="scans_row">
-                    <td class="ei editable" style="text-align: left">{{item.ei}}</td>
+                    <td contenteditable="true"  class="ei editable" style="text-align: left">{{item.ei}}</td>
                     <td class="A3_start editable">{{item.A3_start}}</td>
                     <td>to</td>
                     <td class="A3_end editable">{{item.A3_end}}</td>
@@ -268,7 +268,7 @@
     var associate_buttons = function associate_buttons(){
         var scan_fields = $(".scan_entry");
         scan_fields.keypress(scan_field_key);
-        $(".editable").editable(function(value, settings) {return(value);})
+        // $(".editable").editable(function(value, settings) {return(value);})
         $(function(){$("button").button();})
     }
 
@@ -291,8 +291,10 @@
 
     associate_buttons();
     $("#scan_error_box").hide();
-    $(".editable").editable(function(value, settings) {return(value);})
-    $("#scans_tbody").sortable()
+    // $(".editable").editable(function(value, settings) {return(value);})
+
+    $("#scans_tbody").sortable({handle: ".A3_start"})
+
     $("#scans_table").on("click", ".remove_button", remove_buttonfun)
     $("#scans_table").on("click", ".clone_button", clone_buttonfun);
 
