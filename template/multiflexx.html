@@ -41,7 +41,7 @@
         {%endif%}
     </div>
     <div id="div_inputs">
-        <h3 id="scans_header" class="section_head ui-corner-all">Scans (Click to edit, enter key to save.)</h3>
+        <h3 id="scans_header" class="section_head ui-corner-all">Scans (Click to edit)</h3>
         <div id="scans_table" class="scans_table graphic">
             <table>
                 <thead>
@@ -51,23 +51,25 @@
                     <th colspan="3">A4 range</th>
                     <th>Points</th>
                     <th>Operations</th>
+                    <th>Reorder</th>
                 </tr>
                 </thead>
                 <tbody id="scans_tbody">
                 {%for item in scan_rows%}
                 <tr class="scans_row">
-                    <td contenteditable="true"  class="ei editable" style="text-align: left">{{item.ei}}</td>
-                    <td class="A3_start editable">{{item.A3_start}}</td>
+                    <td contenteditable="true" class="ei editable" style="text-align: left">{{item.ei}}</td>
+                    <td contenteditable="true" class="A3_start editable">{{item.A3_start}}</td>
                     <td>to</td>
-                    <td class="A3_end editable">{{item.A3_end}}</td>
-                    <td class="A4_start editable">{{item.A4_start}}</td>
+                    <td contenteditable="true" class="A3_end editable">{{item.A3_end}}</td>
+                    <td contenteditable="true" class="A4_start editable">{{item.A4_start}}</td>
                     <td>to</td>
-                    <td class="A4_end editable">{{item.A4_end}}</td>
-                    <td class="NP editable">{{item.NP}}</td>
+                    <td contenteditable="true" class="A4_end editable">{{item.A4_end}}</td>
+                    <td contenteditable="true" class="NP editable">{{item.NP}}</td>
                     <td>
                         <button type="button" class="remove_button action_button">remove</button>
                         <button type="button" class="clone_button action_button">clone</button>
                     </td>
+                    <td class="drag_handle">Drag</td>
                 </tr>
                 {%endfor%}
                 </tbody>
@@ -84,6 +86,7 @@
                     <td>
                         <button type="button" class="add_button action_button" id="add_button">add</button>
                     </td>
+                    <td> </td>
                 </tr>
                 <tr>
                     <td colspan=9 style="text-align:center;">
@@ -212,14 +215,17 @@
 
         }
         if (!has_invalid) {
-            node.before(`<tr class="scans_row"><td class="ei editable" style="text-align: left">${values.ei.toString()}</td>
-            <td class="A3_start editable">${values.A3_start.toString()}</td><td>to</td><td class="A3_end editable">${values.A3_end.toString()}</td>
-            <td class="A4_start editable">${values.A4_start.toString()}</td><td>to</td><td class="A4_end editable">${values.A4_end.toString()}</td>
-            <td class="NP editable">${values.NP.toString()}</td>
+            node.before(`<tr class="scans_row">
+            <td contenteditable="true" class="ei editable" style="text-align: left">${values.ei.toString()}</td>
+            <td contenteditable="true" class="A3_start editable">${values.A3_start.toString()}</td><td>to</td><td contenteditable="true" class="A3_end editable">${values.A3_end.toString()}</td>
+            <td contenteditable="true" class="A4_start editable">${values.A4_start.toString()}</td><td>to</td><td contenteditable="true" class="A4_end editable">${values.A4_end.toString()}</td>
+            <td contenteditable="true" class="NP editable">${values.NP.toString()}</td>
             <td>
                 <button type="button", class="remove_button action_button">remove</button>
                 <button type="button", class="clone_button action_button">clone</button>
-            </td></tr>`);
+            </td>
+            <td class="drag_handle">Drag</td>
+            </tr>`);
             associate_buttons();
             $("#scan_error_box").hide();
             $(".editable").editable(function(value, settings) {return(value);})
@@ -293,7 +299,7 @@
     $("#scan_error_box").hide();
     // $(".editable").editable(function(value, settings) {return(value);})
 
-    $("#scans_tbody").sortable({handle: ".A3_start"})
+    $("#scans_tbody").sortable({handle: ".drag_handle"})
 
     $("#scans_table").on("click", ".remove_button", remove_buttonfun)
     $("#scans_table").on("click", ".clone_button", clone_buttonfun);
