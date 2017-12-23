@@ -19,6 +19,10 @@
     <script src="{% static "js/jquery-ui.js" %}"></script>
 
     <script>
+    if(navigator.userAgent.indexOf('MSIE')!==-1
+        || navigator.appVersion.indexOf('Trident/') > 0){
+        alert('Internet Explorer of ANY version is not supported as of now.');
+    }
         $(function(){$("button").button();})
         $(function(){$(".controlgroup").controlgroup();})
     </script>
@@ -31,6 +35,8 @@
         <p>Choose an Ef channel and hover mouse over Q-space plot to update angle, Q values and orientation plot.<br>
         With magnet involved, white dots mean 100% transmission, anything below 100% is at least yellow, and turns red
         with decreasing transmission.</p>
+        <p style="color:red">Does not support Internet Explorer of ANY version. Microsoft Edge is partially supported.<br>
+                             Chrome, Firefox and Safari are supported.</p>
     </div>
     <div id="figure" class="graphic">
         {%if submitted%}
