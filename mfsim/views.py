@@ -354,7 +354,7 @@ def draw_radar(main_plot, div, en_button, hm_name, ki, hkl1, north, ssr, ub_matr
                 q_source.change.emit();
                 }}
             catch(except) {{
-                div.text += "No channel selected/ Scattering triangle cannot close."
+                div.text += '<p style="color:red;font-size:120%">No channel selected/ Scattering triangle cannot close.</p>'
                 }}   
             
     
