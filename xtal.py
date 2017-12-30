@@ -2,6 +2,7 @@ from scipy.spatial import Voronoi, ConvexHull
 import numpy as np
 import flexxtools as ft
 import json
+from collections import OrderedDict
 
 
 class BZ3D(object):
@@ -11,14 +12,14 @@ class BZ3D(object):
 
     @space_group.setter
     def space_group(self, value):
-        if value not in symmetry_operations_dict.keys() and value is not None:
+        if value not in symops_dict.keys() and value is not None:
             raise IndexError('Attempted to set invalid space group to Brillouin zone object.')
         else:
             self._space_group = value
-            self._symops = symmetry_operations_dict[value]['ops']
+            self._symops = symops_dict[value]['ops']
             self.reflections_valid = False
             self._2dbz = None
-            self._2dbz_p = None
+            self.bz2d_p = None
 
     @property
     def reflections(self):
@@ -27,11 +28,11 @@ class BZ3D(object):
         else:
             raise RuntimeError('BZ not yet calculated and not ready for querying.')
 
-    def __init__(self, ub_matrix: ft.UBMatrix = None, central_ref=(0, 0, 0), space_group='unset'):
+    def __init__(self, ub_matrix: ft.UBMatrix = None, central_ref=(0, 0, 0), space_group='unknown'):
         self._symops = []
         self._rec_cell_polys = None
         self._2dbz = None
-        self._2dbz_p = None
+        self.bz2d_p = None
         self._space_group = None
         self.reflections_valid = False
         self.space_group = space_group
@@ -78,9 +79,7 @@ class BZ3D(object):
         verts_2d = np.array([hull_2d.points[vert_id] for vert_id in hull_2d.vertices])
         verts_2d_3col = np.hstack((verts_2d, np.zeros([verts_2d.shape[0], 1])))
         verts_2d_p = self.ub_matrix.convert(verts_2d_3col.T, 'sp')
-        verts_2d_p_closed = np.hstack((verts_2d_p, verts_2d_p[:, -1]))
-        self._2dbz_p = verts_2d_p
-
+        self.bz2d_p = verts_2d_p
 
     def generate_reflections(self):
         self._reflections = [[0, 0, 0]]
@@ -93,7 +92,7 @@ class BZ3D(object):
 
         self.reflections_valid = True
 
-    def check_forbidden(self, hkl):
+    def bz_check_forbidden(self, hkl):
         return check_forbidden(hkl, self._symops)
 
 
@@ -104,7 +103,7 @@ def check_forbidden(hkl, sg_or_oplist):
         ops = sg_or_oplist
     else:
         try:
-            ops = symmetry_operations_dict[sg_or_oplist]['ops']
+            ops = symops_dict[sg_or_oplist]['ops']
         except KeyError:
             print('failed to retrieve space group %s:' % sg_or_oplist)
             return False
@@ -121,8 +120,8 @@ def check_forbidden(hkl, sg_or_oplist):
     return False
 
 
-def load_space_groups(file='symops.json'):
-    return json.loads(open(file).read())
+def load_space_groups(file='./space-groups.json'):
+    return json.loads(open(file).read(), object_pairs_hook=OrderedDict)
 
 
 def parse_sym_op(operation):
@@ -132,4 +131,5 @@ def parse_sym_op(operation):
     return matrix, vector
 
 
-symmetry_operations_dict = load_space_groups()
+symops_dict = load_space_groups()
+symops_keys = list(symops_dict.keys())

@@ -13,6 +13,7 @@
     <script src="{% static "js/jquery.js" %}"></script>
     <script src="{% static "js/math.min.js" %}"></script>
     <script src="{% static "js/flexmath.js" %}"></script>
+    <script src="{% static "js/symmetry-constraint.js" %}"></script>
     {{css_resources|safe}}
     {{js_resources|safe}}
     <script src="{% static "js/jquery.jeditable.mini.js" %}"></script>
@@ -114,14 +115,14 @@
                     <tbody>
                     <tr>
                         <td style="text-align: left">Lattice</td>
-                        <td>a:<input type="text" class="sample_entry" name="lat_a" value="{{scan_data.lat_a}}"></td>
-                        <td>b:<input type="text" class="sample_entry" name="lat_b" value="{{scan_data.lat_b}}"></td>
-                        <td>c:<input type="text" class="sample_entry" name="lat_c" value="{{scan_data.lat_c}}"></td>
-                        <td>&alpha;:<input type="text" class="sample_entry" name="lat_alpha"
+                        <td>a:<input type="text" class="sample_entry" name="lat_a" id="as" value="{{scan_data.lat_a}}"></td>
+                        <td>b:<input type="text" class="sample_entry" name="lat_b" id="bs" value="{{scan_data.lat_b}}"></td>
+                        <td>c:<input type="text" class="sample_entry" name="lat_c" id="cs" value="{{scan_data.lat_c}}"></td>
+                        <td>&alpha;:<input type="text" class="sample_entry" name="lat_alpha" id="aa"
                                            value="{{scan_data.lat_alpha}}"></td>
-                        <td>&beta;:<input type="text" class="sample_entry" name="lat_beta"
+                        <td>&beta;:<input type="text" class="sample_entry" name="lat_beta" id="bb"
                                           value="{{scan_data.lat_beta}}"></td>
-                        <td>&gamma;:<input type="text" class="sample_entry" name="lat_gamma"
+                        <td>&gamma;:<input type="text" class="sample_entry" name="lat_gamma" id="cc"
                                            value="{{scan_data.lat_gamma}}"></td>
                     </tr>
                     <tr>
@@ -153,6 +154,15 @@
                         </td>
                         <td>l2:<input type="text" class="sample_entry" name="plot_l2" value="{{scan_data.plot_l2}}">
                         </td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">Space group:
+                            <select name="space_group" id="space_group">
+                                {% for entry in space_groups %}
+                                    <option value="{{ entry.2 }}" {% if scan_data.space_group ==  entry.2%} selected {% endif %}>No. {{ entry.1 }} {{ entry.0 }}</option>
+                                {% endfor %}
+                            </select>
+                        <td></td><td></td><td></td><td></td><td></td>
                     </tr>
                     </tbody>
                 </table>
@@ -291,6 +301,7 @@
     $("#entry").submit(function(event){
         update_lists();
         var sample_valid = true;
+        $(".sample_entry").prop('disabled', false);
         if ($(".scans_row").length === 0) {
             alert("At least one scan is required.");
             sample_valid = false;}
@@ -304,12 +315,14 @@
 
     associate_buttons();
     $("#scan_error_box").hide();
-    // $(".editable").editable(function(value, settings) {return(value);})
+    // $(".editable").editable(function(value, settings) {return(value);});
 
-    $("#scans_tbody").sortable({handle: ".drag_handle"})
+    $("#scans_tbody").sortable({handle: ".drag_handle"});
 
-    $("#scans_table").on("click", ".remove_button", remove_buttonfun)
+    $("#scans_table").on("click", ".remove_button", remove_buttonfun);
     $("#scans_table").on("click", ".clone_button", clone_buttonfun);
 
-
+    let spaceGroupLock = new symmetryConstraint('#space_group', '#as', '#bs', '#cs', '#aa', '#bb', '#cc');
+    $(".sample_entry").on("change", function(){spaceGroupLock.updateValues()});
+    $("#space_group").on("change", function(){spaceGroupLock.updateRules()});
 </script>

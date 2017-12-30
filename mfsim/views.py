@@ -36,6 +36,8 @@ def multiflexx_sim(request):
         submitted = False
     scan_rows = []
     script, div = '', ''
+    space_groups = [[xtal.symops_dict[key]['id'], str(xtal.symops_dict[key]['no']),
+                     ';'.join((xtal.symops_dict[key]['id'], str(xtal.symops_dict[key]['no'])))] for key in xtal.symops_keys]
 
     if submitted:
         scan_data_nice = extract_data(scan_data)
@@ -44,7 +46,8 @@ def multiflexx_sim(request):
     js_resources = INLINE.render_js()
     css_resources = INLINE.render_css()
     tag_lib = {'scan_data': scan_data, 'scan_rows': scan_rows, 'graph_script': script, 'graph_div': div,
-               'js_resources': js_resources, 'css_resources': css_resources, 'submitted': submitted}
+               'js_resources': js_resources, 'css_resources': css_resources, 'submitted': submitted,
+               'space_groups': space_groups}
     tag_lib.update(scan_data)
 
     return render(request, 'multiflexx.html', tag_lib)
@@ -57,6 +60,7 @@ def extract_data(get):
     hkl2 = float_each([get['align_h2'], get['align_k2'], get['align_l2']])
     plot_x = float_each([get['plot_h1'], get['plot_k1'], get['plot_l1']])
     plot_y = float_each([get['plot_h2'], get['plot_k2'], get['plot_l2']])
+    sg = get['space_group']
     eis = float_each(get['ei_list'].split(','))
     A3_starts = float_each(get['A3_start_list'].split(','))
     A3_ends = float_each(get['A3_end_list'].split(','))
@@ -71,7 +75,8 @@ def extract_data(get):
         hm_hkl = None
         hm_ssr = None
     return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=A3_starts,
-                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs, hm=hm, hm_hkl=hm_hkl, hm_ssr=hm_ssr)
+                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs, hm=hm, hm_hkl=hm_hkl, hm_ssr=hm_ssr,
+                sg=sg)
 
 
 def make_scan_rows(scan):
@@ -84,6 +89,10 @@ def make_scan_rows(scan):
 def make_figures(scan):
     ub_matrix = ft.UBMatrix(scan['latparam'], scan['hkl1'], scan['hkl2'], scan['plot_x'], scan['plot_y'])
     A3_starts, A3_ends, A4_starts, A4_ends= (scan['A3_starts'], scan['A3_ends'], scan['A4_starts'], scan['A4_ends'])
+    space_group = scan['sg'].split(";")[0]
+    bz3d = xtal.BZ3D(ub_matrix=ub_matrix, space_group=space_group)
+    bz3d.calcBZ()
+    bz3d.first_bz_intersection()
     NPs = [int(x) for x in scan['NPs']]
     kis = [ft.e_to_k(e) for e in scan['eis']]
     kfs = [ft.e_to_k(e) for e in ft.EF_LIST]
@@ -154,9 +163,8 @@ def make_figures(scan):
                                             visible=True, fill_color='colors', line_alpha=0.2, source=source_handle)
         main_plot.patches(locus[2][0], locus[3][0], fill_alpha=0.0, line_width=1.2, legend='Common',
                            line_color='red', muted_line_alpha=0.0, muted_fill_alpha=0.0)
-        glyph_dots = plot_lattice_points(main_plot, x_axis, y_axis)
+        glyph_dots = plot_lattice_bz(main_plot, x_axis, y_axis, bz3d=bz3d)
         main_plot.legend.click_policy = 'mute'
-        plot_brillouin_zones(main_plot, x_axis, y_axis)
         cs = sources
         callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source_handle), code="""
                 var f = cb_obj.active;
@@ -272,32 +280,36 @@ def set_aspect(fig, x, y, aspect=1, margin=0.1):
     fig.y_range = Range1d(ycenter-0.5*height, ycenter+0.5*height)
 
 
-def plot_lattice_points(graph, x_axis, y_axis, bz3d=None):
-    x, y = np.mgrid[-10:10:0.5, -10:10:0.5]
+def plot_lattice_bz(graph, x_axis, y_axis, bz3d=None):
+    x, y = np.mgrid[-5:5:0.5, -5:5:0.5]
     xr = list(np.reshape(x, -1))
     yr = list(np.reshape(y, -1))
     tooltip = []
-    fill_alpha = []
+    dot_fill_alpha = []
     size = []
     low_index_points = []
+    bz_x = []
+    bz_y = []
+    bz_p_center_x = bz3d.bz2d_p[0, :]
+    bz_p_center_y = bz3d.bz2d_p[1, :]
     for cx, cy in zip(xr, yr):
         coord = cx * x_axis + cy * y_axis
-        tooltip.append(bracketed_vector(coord))
-        if (coord == coord.astype(int)).all():
-            fill_alpha.append(0.3)
+        if (coord == coord.astype(int)).all() and not bz3d.bz_check_forbidden(coord):
+            pass
+            dot_fill_alpha.append(0.3)
             size.append(12)
-            low_index_points.append((xr, yr))
-        else:
-            fill_alpha.append(0)
-            size.append(9)
-    source = ColumnDataSource(data=dict(x=xr, y=yr, coord=tooltip, fill_alpha=fill_alpha, size=size))
-    circles = graph.circle('x', 'y', source=source, size='size', fill_alpha='fill_alpha')
+            low_index_points.append((cx, cy))
+            tooltip.append(bracketed_vector(coord))
+            bz_x.append(bz_p_center_x + cx)
+            bz_y.append(bz_p_center_y + cy)
+    low_index_points = np.array(low_index_points)
+    source_dots = ColumnDataSource(data=dict(x=low_index_points[:, 0], y=low_index_points[:,1], coord=tooltip, fill_alpha=dot_fill_alpha, size=size))
+    source_bzs = ColumnDataSource(data=dict(xs=bz_x, ys=bz_y, tooltip=tooltip))
+    circles = graph.circle('x', 'y', source=source_dots, size='size', fill_alpha='fill_alpha')
     graph.circle_x(0, 0, size=20, line_color='blue', line_width=1.5, fill_alpha=0)
+    bz_patches = graph.patches(xs='xs', ys='ys',source=source_bzs, fill_alpha=0, color='#666611')
+    # graph.add_tools(HoverTool(renderers=[bz_patches] , tooltips='Q: @tooltip'))
     return circles
-
-
-def plot_brillouin_zones(graph, x_axis, y_axis):
-    pass
 
 
 def split_scatter_lists(scatter_arrays):
