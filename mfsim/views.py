@@ -159,32 +159,28 @@ def make_figures(scan):
         plot_brillouin_zones(main_plot, x_axis, y_axis)
         cs = sources
         callback = CustomJS(args=dict(s0=cs[0], s1=cs[1], s2=cs[2], s3=cs[3], s4=cs[4], s5=scatter_off, source=source_handle), code="""
-                var f = cb_obj.active;
-                data = source.get('data');
+                var f = cb_obj.active;                
                 switch (f) {
                     case 0:
-                        data2 = s0.get('data');
+                        source.data = s0.data;
                         break;
                     case 1:
-                        data2 = s1.get('data');
+                        source.data = s1.data;
                         break;
                     case 2:
-                        data2 = s2.get('data');
+                        source.data = s2.data;
                         break;
                     case 3:
-                        data2 = s3.get('data');
+                        source.data = s3.data;
                         break;
                     case 4:
-                        data2 = s4.get('data');
+                        source.data = s4.data;
                         break;
                     case 5:
-                        data2 = s5.get('data');
+                        source.data = s5.data;
                         break;
                 }
-                data['x'] = data2['x'];
-                data['y'] = data2['y'];
-                data['colors'] = data2['colors']
-                source.change.emit();
+                source.change.emit();       
             """)
         en_buttons = RadioButtonGroup(labels=['2.5', '3.0', '3.5', '4.0', '4.5', 'Off'], active=5, callback=callback)
         en_button_caption = Div()
