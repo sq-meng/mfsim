@@ -50,19 +50,22 @@ def multiflexx_sim(request):
     return render(request, 'multiflexx.html', tag_lib)
 
 
+def float_each(string_list):
+    return [float(x) for x in string_list]
+
+
 def extract_data(get):
-    float_each = lambda string_list: [float(x) for x in string_list]
     latparam = float_each([get['lat_a'], get['lat_b'], get['lat_c'], get['lat_alpha'], get['lat_beta'], get['lat_gamma']])
     hkl1 = float_each([get['align_h1'], get['align_k1'], get['align_l1']])
     hkl2 = float_each([get['align_h2'], get['align_k2'], get['align_l2']])
     plot_x = float_each([get['plot_h1'], get['plot_k1'], get['plot_l1']])
     plot_y = float_each([get['plot_h2'], get['plot_k2'], get['plot_l2']])
     eis = float_each(get['ei_list'].split(','))
-    A3_starts = float_each(get['A3_start_list'].split(','))
-    A3_ends = float_each(get['A3_end_list'].split(','))
-    A4_starts = float_each(get['A4_start_list'].split(','))
-    A4_ends = float_each(get['A4_end_list'].split(','))
-    NPs = float_each(get['NP_list'].split(','))
+    a3_starts = float_each(get['A3_start_list'].split(','))
+    a3_ends = float_each(get['A3_end_list'].split(','))
+    a4_starts = float_each(get['A4_start_list'].split(','))
+    a4_ends = float_each(get['A4_end_list'].split(','))
+    number_points = float_each(get['NP_list'].split(','))
     hm = get['horizontal_magnet']
     if hm != 'no':
         hm_hkl = float_each([get['hm_h'], get['hm_k'],get['hm_l']])
@@ -70,8 +73,9 @@ def extract_data(get):
     else:
         hm_hkl = None
         hm_ssr = None
-    return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=A3_starts,
-                A3_ends=A3_ends, A4_starts=A4_starts, A4_ends=A4_ends, NPs=NPs, hm=hm, hm_hkl=hm_hkl, hm_ssr=hm_ssr)
+    return dict(latparam=latparam, hkl1=hkl1, hkl2=hkl2, plot_x=plot_x, plot_y=plot_y, eis=eis, A3_starts=a3_starts,
+                A3_ends=a3_ends, A4_starts=a4_starts, A4_ends=a4_ends, NPs=number_points, hm=hm, hm_hkl=hm_hkl,
+                hm_ssr=hm_ssr)
 
 
 def make_scan_rows(scan):

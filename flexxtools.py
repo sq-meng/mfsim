@@ -39,10 +39,10 @@ def k_to_e(k):
 
 
 class UBMatrix(object):
-    def __init__(self, *args, config=None):
+    def __init__(self, latparam, hkl1, hkl2, plot_x, plot_y, config=None):
         if config is None:
             try:
-                self._latparam, self.hkl1, self.hkl2, self._plot_x, self._plot_y = args
+                self._latparam, self.hkl1, self.hkl2, self._plot_x, self._plot_y = latparam, hkl1, hkl2, plot_x, plot_y
             except ValueError:
                 self._latparam, self.hkl1, self.hkl2 = args
                 self._plot_x = None
